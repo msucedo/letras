@@ -7,7 +7,8 @@ import Combine
 // Es una imagen y no un Text porque la etiqueta de un MenuBarExtra ignora .frame y el recorte, y una
 // línea larga empujaría a los demás iconos. Si el texto no cabe en el ancho máximo, la imagen se
 // queda de ese ancho y el texto se desliza adentro, como marquesina: espera un momento, avanza
-// hasta el final y termina un poco antes de que toque el siguiente.
+// hasta el final y termina un poco antes de que toque el siguiente. El título del principio, en
+// cambio, va y viene mientras se muestra, para que dé tiempo de leerlo.
 //
 // Al cambiar de texto se anima como se haya elegido en los ajustes (AnimacionBarra): deslizar,
 // rodillo, revelado, fundido o ninguna. También al aparecer el texto donde solo estaba el icono, y
@@ -49,6 +50,8 @@ final class Marquesina: ObservableObject {
     static let margenFinal = 1.0
     /// Puntos por segundo, como mínimo, aunque el texto dure mucho.
     static let velocidadMinima = 30.0
+    /// Puntos por segundo del título cuando va y viene: despacio, para leerlo.
+    static let velocidadTitulo = 40.0
     /// Deslizar: el hueco entre el texto que sale y el que entra, para que nunca se encimen.
     static let hueco: CGFloat = 16
     /// Revelado: parte de la transición en que el texto anterior termina de desvanecerse.
@@ -73,6 +76,9 @@ final class Marquesina: ObservableObject {
     private var transicion: (inicio: TimeInterval, animacion: AnimacionBarra, anchoDesde: CGFloat)?
     /// El ancho después del icono en el último cuadro dibujado.
     private var anchoMostrado: CGFloat = 0
+    /// El último cuadro que se dibujó (texto, desplazamiento y ancho), para no volver a generar la
+    /// misma imagen 30 veces por segundo mientras el título espera en una orilla.
+    private var ultimoCuadro: (texto: NSAttributedString?, desplazamiento: CGFloat, ancho: CGFloat)?
     private var nivel = Nivel.completo
     private var anchoMaximo: CGFloat { nivel.anchoMaximo }
     private var timer: Timer?
@@ -140,7 +146,16 @@ final class Marquesina: ObservableObject {
         }
 
         let recorrido = max(0, (texto?.size().width ?? 0) - anchoMaximo)
-        desplazamiento = recorrido > 0 ? desplazamientoActual(recorrido: recorrido) : 0
+        var tituloMoviendose = false
+        if let segmento, segmento.esTitulo, recorrido > 0 {
+            let vaiven = Segmento.vaivenTitulo(transcurrido: posicion - segmento.inicio, recorrido: Double(recorrido),
+                                               ventana: segmento.fin - segmento.inicio,
+                                               espera: Self.espera, velocidad: Self.velocidadTitulo)
+            desplazamiento = CGFloat(vaiven.desplazamiento)
+            tituloMoviendose = vaiven.moviendo
+        } else {
+            desplazamiento = recorrido > 0 ? desplazamientoActual(recorrido: recorrido) : 0
+        }
 
         // El ancho después del icono: la separación más el texto, recortado al máximo. Durante la
         // transición va del que se veía al empezar al del texto nuevo.
@@ -150,13 +165,21 @@ final class Marquesina: ObservableObject {
         } else {
             anchoMostrado = anchoFinal
         }
-        imagen = Self.dibujar(entrante: texto, desplazamientoEntrante: desplazamiento,
-                              saliente: saliente, progreso: progreso, extra: anchoMostrado,
-                              animacion: transicion?.animacion, anchoMaximo: anchoMaximo)
+        // Mientras el título espera en una orilla, el cuadro sale igual al anterior: no se vuelve a dibujar.
+        let repetido = transicion == nil && segmento?.esTitulo == true && ultimoCuadro.map {
+            $0.texto === texto && $0.desplazamiento == desplazamiento && $0.ancho == anchoMostrado
+        } == true
+        if !repetido {
+            imagen = Self.dibujar(entrante: texto, desplazamientoEntrante: desplazamiento,
+                                  saliente: saliente, progreso: progreso, extra: anchoMostrado,
+                                  animacion: transicion?.animacion, anchoMaximo: anchoMaximo)
+        }
+        ultimoCuadro = transicion == nil ? (texto, desplazamiento, anchoMostrado) : nil
 
         let sonando = monitor.estado == .reproduciendo
         let enMovimiento = transicion != nil
-            || (sonando && recorrido > 0 && desplazamiento < recorrido)
+            || (sonando && segmento?.esTitulo != true && recorrido > 0 && desplazamiento < recorrido)
+            || (sonando && tituloMoviendose)
             // Mientras va el título de los primeros segundos, para notar cuándo le toca a la letra.
             || (sonando && monitor.cancion != nil && posicion < Segmento.presentacion)
         if enMovimiento, timer == nil {

@@ -79,7 +79,7 @@ struct LetraCheck {
         let titulo = "La Negra Tomasa — Caifanes"
         comprobar("sin canción, solo icono",
                   Segmento.actual(cancion: nil, letra: sincronizada, indice: nil, posicion: 0), nil)
-        comprobar("título antes de la primera", segmento(nil, 1), Segmento(texto: titulo, inicio: 0, fin: 5))
+        comprobar("título antes de la primera", segmento(nil, 1), Segmento(texto: titulo, inicio: 0, fin: 5, esTitulo: true))
         comprobar("título los primeros 5 s", segmento(0, 4)?.texto, titulo)
         comprobar("primera línea desde los 5 s", segmento(0, 5), Segmento(texto: "Uno", inicio: 5, fin: 12))
         comprobar("línea con su ventana", segmento(1, 13), Segmento(texto: "Dos", inicio: 12, fin: 20))
@@ -88,9 +88,26 @@ struct LetraCheck {
         comprobar("título hasta la primera si tarda",
                   Segmento.actual(cancion: a, letra: .lista(.sincronizada([Linea(tiempo: 30, texto: "x")])),
                                   indice: nil, posicion: 10),
-                  Segmento(texto: titulo, inicio: 0, fin: 30))
-        comprobar("sin letra, título", segmento(nil, 60, letra: .sinLetra), Segmento(texto: titulo, inicio: 0, fin: 8))
+                  Segmento(texto: titulo, inicio: 0, fin: 30, esTitulo: true))
+        comprobar("sin letra, título", segmento(nil, 60, letra: .sinLetra), Segmento(texto: titulo, inicio: 0, fin: 8, esTitulo: true))
         comprobar("letra simple, título", segmento(nil, 60, letra: .lista(.simple(["a"])))?.texto, titulo)
+
+        // Ida y vuelta del título: 80 puntos a 40 por segundo (2 s de viaje), 1 s quieto en cada
+        // orilla, así que cada vuelta dura 6 s.
+        func vaiven(_ t: Double, ventana: Double = 5) -> [Double] {
+            let r = Segmento.vaivenTitulo(transcurrido: t, recorrido: 80, ventana: ventana, espera: 1, velocidad: 40)
+            return [r.desplazamiento, r.moviendo ? 1 : 0]
+        }
+        comprobar("vaivén: quieto al principio", vaiven(0.5), [0, 1])
+        comprobar("vaivén: a la mitad de la ida", vaiven(2), [40, 1])
+        comprobar("vaivén: quieto al final", vaiven(3.5), [80, 1])
+        comprobar("vaivén: de regreso", vaiven(5), [40, 1])
+        comprobar("vaivén: otra vuelta", vaiven(8, ventana: 10), [40, 1])
+        comprobar("vaivén: termina la vuelta pasada la ventana", vaiven(5.5), [20, 1])
+        comprobar("vaivén: después se queda al principio", vaiven(7), [0, 0])
+        comprobar("vaivén: si cabe, quieto",
+                  Segmento.vaivenTitulo(transcurrido: 2, recorrido: 0, ventana: 5, espera: 1, velocidad: 40).moviendo, false)
+        comprobar("la letra no es título", segmento(1, 13)?.esTitulo, false)
 
         // Ajustes guardados por versiones anteriores
         let viejos = try! JSONDecoder().decode(Ajustes.self, from: Data(#"{"ajuste":0.5,"flotante":true,"lineaEnLaBarra":false}"#.utf8))

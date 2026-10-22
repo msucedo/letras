@@ -175,6 +175,9 @@ struct PanelView: View {
 /// La letra completa, con la línea que se canta resaltada y siempre a la vista.
 struct LetraView: View {
     @ObservedObject var monitor: Monitor
+    /// Dónde queda el centro de cada línea, medido desde el principio de la letra.
+    @State private var centros: [Int: CGFloat] = [:]
+    @State private var scroll = RefScroll()
 
     var body: some View {
         switch monitor.letra {
@@ -206,39 +209,64 @@ struct LetraView: View {
         }
     }
 
+    /// La letra va en un ScrollView, para poder recorrerla a mano, pero el desplazamiento a la línea
+    /// actual lo hace AppKit y no SwiftUI: en macOS, el scrollTo animado de SwiftUI no arranca
+    /// desde donde está la letra (la baja y luego la sube). Con la animación de AppKit se mueve
+    /// directo de la posición actual a la nueva.
     private func sincronizada(_ lineas: [Linea]) -> some View {
-        ScrollViewReader { scroll in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(Array(lineas.enumerated()), id: \.offset) { i, linea in
-                        let actual = i == monitor.indice
-                        Text(linea.texto.isEmpty ? "♪" : linea.texto)
-                            // El grosor no se anima (brinca de golpe); el color y la escala sí.
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(actual ? Color.primary : Color.secondary)
-                            .scaleEffect(actual ? 1.05 : 1, anchor: .leading)
-                            .animation(.easeInOut(duration: 0.3), value: actual)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            // Espacio para lo que crece la línea actual, para que no se corte.
-                            .padding(.trailing, 16)
-                            .id(i)
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(lineas.enumerated()), id: \.offset) { i, linea in
+                    let actual = i == monitor.indice
+                    Text(linea.texto.isEmpty ? "♪" : linea.texto)
+                        // El grosor no se anima (brinca de golpe); el color y la escala sí.
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(actual ? Color.primary : Color.secondary)
+                        .scaleEffect(actual ? 1.05 : 1, anchor: .leading)
+                        .animation(.easeInOut(duration: 0.3), value: actual)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Espacio para lo que crece la línea actual, para que no se corte.
+                        .padding(.trailing, 16)
+                        .background(GeometryReader { medida in
+                            Color.clear.preference(key: CentrosDeLineas.self,
+                                                   value: [i: medida.frame(in: .named("letra")).midY])
+                        })
                 }
-                // Aire arriba y abajo para que la primera y la última línea también puedan quedar al centro.
-                .padding(.vertical, 150)
             }
-            .onAppear { centrar(scroll, animado: false) }
-            .onChange(of: monitor.indice) { _ in centrar(scroll, animado: true) }
+            // Aire arriba y abajo para que la primera y la última línea también puedan quedar al centro.
+            .padding(.vertical, 150)
+            // Medido desde el principio de la letra: no cambia al desplazarla.
+            .coordinateSpace(name: "letra")
+            .background(BuscaScroll(ref: scroll))
         }
+        .onPreferenceChange(CentrosDeLineas.self) { nuevos in
+            let primeraVez = centros.isEmpty
+            centros = nuevos
+            if primeraVez { centrar(animado: false) }
+        }
+        .onChange(of: monitor.indice) { _ in centrar(animado: true) }
     }
 
-    private func centrar(_ scroll: ScrollViewProxy, animado: Bool) {
-        let destino = monitor.indice ?? 0
+    private func centrar(animado: Bool) {
+        guard let vista = scroll.vista, let documento = vista.documentView,
+              let centro = centros[monitor.indice ?? 0] else { return }
+        let clip = vista.contentView
+        let visible = clip.bounds.height
+        let alto = documento.frame.height
+        // Desde arriba de la letra, sin pasarse de las orillas.
+        var y = min(max(0, centro - visible / 2), max(0, alto - visible))
+        if !documento.isFlipped { y = alto - visible - y }
+        let destino = NSPoint(x: clip.bounds.origin.x, y: y)
         if animado {
-            withAnimation(.easeInOut(duration: 0.3)) { scroll.scrollTo(destino, anchor: .center) }
+            NSAnimationContext.runAnimationGroup { contexto in
+                contexto.duration = 0.45
+                contexto.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                clip.animator().setBoundsOrigin(destino)
+            }
         } else {
-            scroll.scrollTo(destino, anchor: .center)
+            clip.setBoundsOrigin(destino)
         }
+        vista.reflectScrolledClipView(clip)
     }
 
     private func mensaje(_ texto: String, icono: String) -> some View {
@@ -250,5 +278,45 @@ struct LetraView: View {
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Junta el centro de cada línea de la letra, por número de línea.
+private struct CentrosDeLineas: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// El NSScrollView de AppKit que SwiftUI usa por dentro para el ScrollView. Es una clase para que
+/// guardarlo no vuelva a dibujar la vista.
+final class RefScroll {
+    weak var vista: NSScrollView?
+}
+
+/// Una vista invisible dentro del ScrollView que encuentra el NSScrollView que la contiene.
+private struct BuscaScroll: NSViewRepresentable {
+    let ref: RefScroll
+
+    func makeNSView(context: Context) -> Vista {
+        let vista = Vista()
+        vista.ref = ref
+        return vista
+    }
+
+    func updateNSView(_ vista: Vista, context: Context) {
+        vista.ref = ref
+        ref.vista = vista.enclosingScrollView
+    }
+
+    final class Vista: NSView {
+        var ref: RefScroll?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            ref?.vista = enclosingScrollView
+        }
     }
 }

@@ -10,14 +10,39 @@ import Combine
 // hasta el final y termina un poco antes de que toque el siguiente.
 //
 // Al cambiar de texto se anima como se haya elegido en los ajustes (AnimacionBarra): deslizar,
-// rodillo, revelado, fundido o ninguna. En todas menos la última, el ancho de la imagen pasa poco a
-// poco de uno al otro para que los demás iconos se deslicen en lugar de brincar.
+// rodillo, revelado, fundido o ninguna. También al aparecer el texto donde solo estaba el icono, y
+// al quitarse. En todas menos la última, el ancho de la imagen pasa poco a poco de uno al otro para
+// que los demás iconos se deslicen en lugar de brincar.
+//
+// Si la app de enfrente tiene muchos menús, macOS esconde los iconos de la barra que no caben. Al
+// notarlo, la marquesina se encoge: primero a un texto más corto y luego solo al icono. Vuelve a
+// intentar el ancho completo cada vez que cambia la app de enfrente.
 @MainActor
 final class Marquesina: ObservableObject {
     @Published private(set) var imagen: NSImage
 
-    /// Lo más que ocupa el texto en la barra, en puntos.
-    static let anchoMaximo: CGFloat = 260
+    /// Cuánto texto cabe en la barra. Baja de nivel cuando macOS esconde el icono por falta de espacio.
+    enum Nivel: CaseIterable {
+        case completo, corto, icono
+
+        /// Lo más que ocupa el texto, en puntos.
+        var anchoMaximo: CGFloat {
+            switch self {
+            case .completo: return 260
+            case .corto: return 140
+            case .icono: return 0
+            }
+        }
+
+        var siguiente: Nivel? {
+            switch self {
+            case .completo: return .corto
+            case .corto: return .icono
+            case .icono: return nil
+            }
+        }
+    }
+
     /// Segundos quieto al empezar un texto, para leer el principio.
     static let espera = 1.0
     /// Segundos antes de que acabe su turno en que ya debe verse el final.
@@ -42,10 +67,13 @@ final class Marquesina: ObservableObject {
     private var desplazamiento: CGFloat = 0
     /// El texto que va de salida mientras dura la transición, con el desplazamiento que tenía.
     private var saliente: (texto: NSAttributedString, desplazamiento: CGFloat)?
-    private var inicioTransicion: TimeInterval = 0
-    /// La animación de la transición en curso; si se cambia en los ajustes a media transición,
-    /// esa termina como empezó.
-    private var animacion = AnimacionBarra.deslizar
+    /// La transición en curso: cuándo empezó, con qué animación (si se cambia en los ajustes a la
+    /// mitad, esta termina como empezó) y el ancho que se veía en ese momento.
+    private var transicion: (inicio: TimeInterval, animacion: AnimacionBarra, anchoDesde: CGFloat)?
+    /// El ancho después del icono en el último cuadro dibujado.
+    private var anchoMostrado: CGFloat = 0
+    private var nivel = Nivel.completo
+    private var anchoMaximo: CGFloat { nivel.anchoMaximo }
     private var timer: Timer?
     private var observaciones: [AnyCancellable] = []
 
@@ -59,7 +87,7 @@ final class Marquesina: ObservableObject {
         self.monitor = monitor
         self.store = store
         imagen = Self.dibujar(entrante: nil, desplazamientoEntrante: 0, saliente: nil, progreso: 1, extra: 0,
-                              animacion: .ninguna)
+                              animacion: nil, anchoMaximo: Nivel.completo.anchoMaximo)
         // Cambia la canción, la línea, la letra, se pausa o se reanuda, o se apaga el texto en la barra.
         // receive(on:) lo deja para la siguiente vuelta del run loop: @Published avisa antes de
         // guardar el valor nuevo, y aquí se lee del monitor.
@@ -69,6 +97,7 @@ final class Marquesina: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.actualizar() }
             .store(in: &observaciones)
+        vigilarEspacio()
     }
 
     private var ahora: TimeInterval { ProcessInfo.processInfo.systemUptime }
@@ -77,14 +106,19 @@ final class Marquesina: ObservableObject {
     /// Decide qué texto toca, empieza la transición si cambió y dibuja el cuadro. Lo llaman los
     /// cambios del monitor y, mientras algo se mueve, el reloj.
     private func actualizar() {
-        let nuevo = store.ajustes.lineaEnLaBarra
+        let nuevo = store.ajustes.lineaEnLaBarra && nivel != .icono
             ? Segmento.actual(cancion: monitor.cancion, letra: monitor.letra, indice: monitor.indice, posicion: posicion)
             : nil
         if nuevo?.texto != segmento?.texto {
             // Si ya iba una transición, la que estaba saliendo desaparece y sale la que entraba.
-            animacion = store.ajustes.animacionBarra
-            saliente = animacion == .ninguna ? nil : texto.map { ($0, desplazamiento) }
-            inicioTransicion = ahora
+            let animacion = store.ajustes.animacionBarra
+            if animacion == .ninguna {
+                transicion = nil
+                saliente = nil
+            } else {
+                transicion = (ahora, animacion, anchoMostrado)
+                saliente = texto.map { ($0, desplazamiento) }
+            }
             texto = nuevo.map { NSAttributedString(string: $0.texto, attributes: [.font: NSFont.menuBarFont(ofSize: 0)]) }
             desplazamiento = 0
         }
@@ -94,28 +128,31 @@ final class Marquesina: ObservableObject {
 
     private func dibujarCuadro() {
         var progreso = 1.0
-        if saliente != nil {
-            progreso = min(1, (ahora - inicioTransicion) / animacion.duracion)
-            if progreso >= 1 { saliente = nil }
+        if let transicion {
+            progreso = min(1, (ahora - transicion.inicio) / transicion.animacion.duracion)
+            if progreso >= 1 {
+                self.transicion = nil
+                saliente = nil
+            }
         }
-        let suave = Self.suavizar(progreso)
 
-        let recorrido = max(0, (texto?.size().width ?? 0) - Self.anchoMaximo)
+        let recorrido = max(0, (texto?.size().width ?? 0) - anchoMaximo)
         desplazamiento = recorrido > 0 ? desplazamientoActual(recorrido: recorrido) : 0
 
-        // El ancho después del icono: la separación más el texto, recortado al máximo.
-        func extra(_ texto: NSAttributedString?) -> CGFloat {
-            texto.map { Self.separacion + min($0.size().width, Self.anchoMaximo) } ?? 0
+        // El ancho después del icono: la separación más el texto, recortado al máximo. Durante la
+        // transición va del que se veía al empezar al del texto nuevo.
+        let anchoFinal = texto.map { Self.separacion + min($0.size().width, anchoMaximo) } ?? 0
+        if let transicion {
+            anchoMostrado = transicion.anchoDesde + (anchoFinal - transicion.anchoDesde) * CGFloat(Self.suavizar(progreso))
+        } else {
+            anchoMostrado = anchoFinal
         }
-        let anchoFinal = extra(texto)
-        let anchoInicial = saliente.map { extra($0.texto) } ?? anchoFinal
         imagen = Self.dibujar(entrante: texto, desplazamientoEntrante: desplazamiento,
-                              saliente: saliente, progreso: progreso,
-                              extra: anchoInicial + (anchoFinal - anchoInicial) * CGFloat(suave),
-                              animacion: animacion)
+                              saliente: saliente, progreso: progreso, extra: anchoMostrado,
+                              animacion: transicion?.animacion, anchoMaximo: anchoMaximo)
 
         let sonando = monitor.estado == .reproduciendo
-        let enMovimiento = saliente != nil
+        let enMovimiento = transicion != nil
             || (sonando && recorrido > 0 && desplazamiento < recorrido)
             // Mientras va el título de los primeros segundos, para notar cuándo le toca a la letra.
             || (sonando && monitor.cancion != nil && posicion < Segmento.presentacion)
@@ -127,6 +164,59 @@ final class Marquesina: ObservableObject {
         } else if !enMovimiento {
             timer?.invalidate()
             timer = nil
+        }
+    }
+
+    // MARK: - Espacio en la barra
+
+    /// Cuánto esperar antes de confirmar que macOS escondió el icono, y entre un nivel y el siguiente.
+    static let esperaEspacio = 0.35
+    private var revisionPendiente = false
+
+    /// Escucha cuándo macOS esconde o vuelve a mostrar la ventana del icono, y cuándo cambia la app
+    /// de enfrente (que es cuando cambian los menús que ocupan la barra).
+    private func vigilarEspacio() {
+        NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)
+            .filter { [weak self] aviso in (aviso.object as? NSWindow) === self?.ventanaDelIcono }
+            .sink { [weak self] _ in self?.revisarEspacio() }
+            .store(in: &observaciones)
+        // Con otra app de enfrente u otra pantalla, a lo mejor ya cabe completo: se intenta de nuevo.
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
+            .merge(with: NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.reintentarCompleto() }
+            .store(in: &observaciones)
+    }
+
+    /// La ventana en la que macOS pone el icono de la barra. SwiftUI no la da: es la única de la app
+    /// de la clase NSStatusBarWindow.
+    private var ventanaDelIcono: NSWindow? {
+        NSApp.windows.first { $0.className.contains("NSStatusBarWindow") }
+    }
+
+    private func reintentarCompleto() {
+        guard nivel != .completo else { return }
+        nivel = .completo
+        actualizar()
+        revisarEspacio()
+    }
+
+    /// Si el icono está escondido por falta de espacio, baja un nivel. Espera un momento antes de
+    /// decidir, para no confundirse con un cambio pasajero, y vuelve a revisar después de encogerse.
+    /// Con la barra de menú oculta (apps en pantalla completa) no hace nada: ahí nada se ve.
+    private func revisarEspacio() {
+        guard !revisionPendiente else { return }
+        revisionPendiente = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.esperaEspacio) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.revisionPendiente = false
+                guard let ventana = self.ventanaDelIcono, !ventana.occlusionState.contains(.visible),
+                      NSMenu.menuBarVisible(), self.texto != nil, let siguiente = self.nivel.siguiente else { return }
+                self.nivel = siguiente
+                self.actualizar()
+                self.revisarEspacio()
+            }
         }
     }
 
@@ -151,7 +241,8 @@ final class Marquesina: ObservableObject {
     /// respeta la transparencia.
     private static func dibujar(entrante: NSAttributedString?, desplazamientoEntrante: CGFloat,
                                 saliente: (texto: NSAttributedString, desplazamiento: CGFloat)?,
-                                progreso: Double, extra: CGFloat, animacion: AnimacionBarra) -> NSImage {
+                                progreso: Double, extra: CGFloat, animacion: AnimacionBarra?,
+                                anchoMaximo: CGFloat) -> NSImage {
         let alto = NSStatusBar.system.thickness
         let ancho = icono.size.width + max(0, extra)
 
@@ -172,34 +263,44 @@ final class Marquesina: ObservableObject {
                 contexto.restoreGState()
             }
             // Sin transición en curso, solo el texto actual en su lugar.
-            guard let saliente else {
+            guard let animacion else {
                 if let entrante { poner(entrante, desplazamiento: desplazamientoEntrante) }
                 return true
             }
+            // Si no hay saliente (aparece el texto donde solo estaba el icono), solo entra el nuevo;
+            // si no hay entrante (se quita el texto), solo sale el anterior.
             let p = CGFloat(suavizar(progreso))
             switch animacion {
             case .deslizar:
                 // Los dos se recorren juntos a la izquierda: lo más ancho de los dos más el hueco,
                 // así el saliente acaba fuera de la zona y el entrante empieza fuera de ella.
                 let visible = { (texto: NSAttributedString?) in min(texto?.size().width ?? 0, anchoMaximo) }
-                let distancia = max(visible(saliente.texto), visible(entrante)) + hueco
-                poner(saliente.texto, desplazamiento: saliente.desplazamiento, dx: -p * distancia)
+                let distancia = max(visible(saliente?.texto), visible(entrante)) + hueco
+                if let saliente {
+                    poner(saliente.texto, desplazamiento: saliente.desplazamiento, dx: -p * distancia)
+                }
                 if let entrante {
                     poner(entrante, desplazamiento: desplazamientoEntrante, dx: (1 - p) * distancia)
                 }
             case .rodillo:
-                poner(saliente.texto, desplazamiento: saliente.desplazamiento, dy: p * alto, opacidad: 1 - p)
+                if let saliente {
+                    poner(saliente.texto, desplazamiento: saliente.desplazamiento, dy: p * alto, opacidad: 1 - p)
+                }
                 if let entrante {
                     poner(entrante, desplazamiento: desplazamientoEntrante, dy: (p - 1) * alto, opacidad: p)
                 }
             case .fundido:
-                poner(saliente.texto, desplazamiento: saliente.desplazamiento, opacidad: 1 - p)
+                if let saliente {
+                    poner(saliente.texto, desplazamiento: saliente.desplazamiento, opacidad: 1 - p)
+                }
                 if let entrante {
                     poner(entrante, desplazamiento: desplazamientoEntrante, opacidad: p)
                 }
             case .revelado:
                 let salida = CGFloat(1 - suavizar(min(1, progreso / finSalida)))
-                poner(saliente.texto, desplazamiento: saliente.desplazamiento, opacidad: salida)
+                if let saliente {
+                    poner(saliente.texto, desplazamiento: saliente.desplazamiento, opacidad: salida)
+                }
                 guard let entrante else { break }
                 let revelado = CGFloat(suavizar(min(1, max(0, (progreso - inicioRevelado) / (1 - inicioRevelado)))))
                 guard revelado > 0 else { break }

@@ -31,15 +31,54 @@ final class VentanaFlotante {
             .store(in: &observaciones)
     }
 
+    /// Segundos que tarda en aparecer o desaparecer.
+    static let duracionAnimacion = 0.25
+    /// Lo que baja al desaparecer (y desde donde sube al aparecer), en puntos.
+    static let caida: CGFloat = 10
+    /// Dónde va la ventana cuando está quieta. Durante la animación se mueve un poco, y al terminar
+    /// se regresa aquí para que AppKit guarde esta posición y no la de en medio.
+    private var lugar: NSPoint?
+
+    /// Aparece subiendo un poco mientras se hace visible, y desaparece bajando mientras se desvanece.
     private func mostrar(_ visible: Bool) {
-        guard visible else {
-            panel?.orderOut(nil)
+        if !visible {
+            guard let panel, panel.isVisible else { return }
+            // Donde está ahora (se pudo haber arrastrado), salvo que siga apareciendo: entonces
+            // todavía no llega a su lugar.
+            let lugar = panel.alphaValue < 1 ? (self.lugar ?? panel.frame.origin) : panel.frame.origin
+            self.lugar = lugar
+            NSAnimationContext.runAnimationGroup { contexto in
+                contexto.duration = Self.duracionAnimacion
+                contexto.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                panel.animator().alphaValue = 0
+                panel.animator().setFrameOrigin(NSPoint(x: lugar.x, y: lugar.y - Self.caida))
+            } completionHandler: { [weak self, weak panel] in
+                MainActor.assumeIsolated {
+                    // Si se volvió a encender mientras se iba, ya no se esconde.
+                    guard let self, let panel, !self.store.ajustes.flotante else { return }
+                    panel.orderOut(nil)
+                    panel.setFrameOrigin(lugar)
+                }
+            }
             return
         }
         let panel = self.panel ?? crearPanel()
         self.panel = panel
-        asegurarVisible()
+        // Si estaba desapareciendo, sale desde donde iba; si no, desde un poco abajo y transparente.
+        if !panel.isVisible {
+            asegurarVisible()
+            lugar = panel.frame.origin
+            panel.alphaValue = 0
+            panel.setFrameOrigin(NSPoint(x: panel.frame.origin.x, y: panel.frame.origin.y - Self.caida))
+        }
+        let lugar = self.lugar ?? panel.frame.origin
         panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { contexto in
+            contexto.duration = Self.duracionAnimacion
+            contexto.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+            panel.animator().setFrameOrigin(lugar)
+        }
     }
 
     /// Si ninguna pantalla muestra al menos un pedazo de la ventana, la regresa abajo al centro.

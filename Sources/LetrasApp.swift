@@ -50,7 +50,11 @@ struct EtiquetaBarra: View {
 struct PanelView: View {
     @ObservedObject var monitor: Monitor
     @ObservedObject var store: AjustesStore
+    /// Si están a la vista las opciones de abajo de la letra. Cada vez que se abre el panel empiezan
+    /// cerradas, aunque se hayan dejado abiertas la vez anterior.
     @State private var abierto = false
+    /// Se pone en true al abrirse el panel, para que el contenido aparezca con una animación.
+    @State private var aparecido = false
     // Si la app abre al iniciar sesión lo sabe el sistema, no los ajustes, así que se le pregunta
     // a SMAppService en vez de guardarlo aparte.
     @State private var alIniciarSesion = SMAppService.mainApp.status == .enabled
@@ -83,8 +87,21 @@ struct PanelView: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)
+        // Al abrir el panel, el contenido baja un poco mientras aparece.
+        .opacity(aparecido ? 1 : 0)
+        .offset(y: aparecido ? 0 : -8)
         // Salir sigue funcionando con ⌘Q aunque el botón esté oculto.
         .background(Button("") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q").hidden())
+        // La vista del panel sobrevive a cerrarlo, así que las opciones se cierran y la animación de
+        // entrada se reinicia al esconderse; como ya no está en pantalla, no se ve.
+        .background(VigilaVentana { visible in
+            if visible {
+                withAnimation(.easeOut(duration: 0.25)) { aparecido = true }
+            } else {
+                abierto = false
+                aparecido = false
+            }
+        })
         .padding(16)
         .frame(width: 360)
     }
@@ -349,6 +366,43 @@ private struct BuscaScroll: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             ref?.vista = enclosingScrollView
+        }
+    }
+}
+
+/// Avisa si la ventana que la contiene se ve en pantalla. SwiftUI no da acceso a la ventana del
+/// MenuBarExtra, así que esta vista invisible la encuentra y escucha sus cambios (igual que en Altar).
+private struct VigilaVentana: NSViewRepresentable {
+    let alCambiar: (Bool) -> Void
+
+    func makeNSView(context: Context) -> Vista {
+        let vista = Vista()
+        vista.alCambiar = alCambiar
+        return vista
+    }
+
+    func updateNSView(_ vista: Vista, context: Context) {
+        vista.alCambiar = alCambiar
+    }
+
+    final class Vista: NSView {
+        var alCambiar: ((Bool) -> Void)?
+        private var observacion: AnyCancellable?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else {
+                observacion = nil
+                return
+            }
+            observacion = NotificationCenter.default
+                .publisher(for: NSWindow.didChangeOcclusionStateNotification, object: window)
+                .sink { [weak self] _ in self?.avisar() }
+            avisar()
+        }
+
+        private func avisar() {
+            alCambiar?(window?.occlusionState.contains(.visible) ?? false)
         }
     }
 }

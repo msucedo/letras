@@ -94,10 +94,10 @@ struct LetraCheck {
 
         // Ajustes guardados por versiones anteriores
         let viejos = try! JSONDecoder().decode(Ajustes.self, from: Data(#"{"ajuste":0.5,"flotante":true,"lineaEnLaBarra":false}"#.utf8))
-        comprobar("sin animación guardada, deslizar", viejos.animacionBarra, .deslizar)
+        comprobar("sin animación guardada, fundido", viejos.animacionBarra, .fundido)
         comprobar("conserva los demás ajustes", [viejos.ajuste, viejos.flotante ? 1 : 0, viejos.lineaEnLaBarra ? 1 : 0], [0.5, 1, 0])
         let desconocida = try! JSONDecoder().decode(Ajustes.self, from: Data(#"{"animacionBarra":"girar","flotante":true}"#.utf8))
-        comprobar("animación desconocida, deslizar y lo demás intacto", [desconocida.animacionBarra == .deslizar, desconocida.flotante], [true, true])
+        comprobar("animación desconocida, fundido y lo demás intacto", [desconocida.animacionBarra == .fundido, desconocida.flotante], [true, true])
         var conRodillo = Ajustes()
         conRodillo.animacionBarra = .rodillo
         let ida = try! JSONDecoder().decode(Ajustes.self, from: try! JSONEncoder().encode(conRodillo))

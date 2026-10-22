@@ -44,7 +44,7 @@ struct Ajustes: Codable, Equatable {
     var flotante = false
     /// Segundos que se adelanta (positivo) o se atrasa (negativo) la letra, para las que vienen desfasadas.
     var ajuste = 0.0
-    var animacionBarra = AnimacionBarra.deslizar
+    var animacionBarra = AnimacionBarra.fundido
 
     init() {}
 

@@ -69,6 +69,40 @@ struct LetraCheck {
         b.album = "Historia"
         comprobar("clave distingue álbum", LRCLIB.clave(a) == LRCLIB.clave(b), false)
 
+        // Qué va en la barra de menú
+        let lrcBarra = [Linea(tiempo: 3, texto: "Uno"), Linea(tiempo: 12, texto: "Dos"),
+                        Linea(tiempo: 20, texto: ""), Linea(tiempo: 25, texto: "Tres")]
+        let sincronizada = EstadoLetra.lista(.sincronizada(lrcBarra))
+        func segmento(_ indice: Int?, _ posicion: Double, letra: EstadoLetra = sincronizada) -> Segmento? {
+            Segmento.actual(cancion: a, letra: letra, indice: indice, posicion: posicion)
+        }
+        let titulo = "La Negra Tomasa — Caifanes"
+        comprobar("sin canción, solo icono",
+                  Segmento.actual(cancion: nil, letra: sincronizada, indice: nil, posicion: 0), nil)
+        comprobar("título antes de la primera", segmento(nil, 1), Segmento(texto: titulo, inicio: 0, fin: 5))
+        comprobar("título los primeros 5 s", segmento(0, 4)?.texto, titulo)
+        comprobar("primera línea desde los 5 s", segmento(0, 5), Segmento(texto: "Uno", inicio: 5, fin: 12))
+        comprobar("línea con su ventana", segmento(1, 13), Segmento(texto: "Dos", inicio: 12, fin: 20))
+        comprobar("línea vacía, solo icono", segmento(2, 21), nil)
+        comprobar("última línea", segmento(3, 26), Segmento(texto: "Tres", inicio: 25, fin: 33))
+        comprobar("título hasta la primera si tarda",
+                  Segmento.actual(cancion: a, letra: .lista(.sincronizada([Linea(tiempo: 30, texto: "x")])),
+                                  indice: nil, posicion: 10),
+                  Segmento(texto: titulo, inicio: 0, fin: 30))
+        comprobar("sin letra, título", segmento(nil, 60, letra: .sinLetra), Segmento(texto: titulo, inicio: 0, fin: 8))
+        comprobar("letra simple, título", segmento(nil, 60, letra: .lista(.simple(["a"])))?.texto, titulo)
+
+        // Ajustes guardados por versiones anteriores
+        let viejos = try! JSONDecoder().decode(Ajustes.self, from: Data(#"{"ajuste":0.5,"flotante":true,"lineaEnLaBarra":false}"#.utf8))
+        comprobar("sin animación guardada, deslizar", viejos.animacionBarra, .deslizar)
+        comprobar("conserva los demás ajustes", [viejos.ajuste, viejos.flotante ? 1 : 0, viejos.lineaEnLaBarra ? 1 : 0], [0.5, 1, 0])
+        let desconocida = try! JSONDecoder().decode(Ajustes.self, from: Data(#"{"animacionBarra":"girar","flotante":true}"#.utf8))
+        comprobar("animación desconocida, deslizar y lo demás intacto", [desconocida.animacionBarra == .deslizar, desconocida.flotante], [true, true])
+        var conRodillo = Ajustes()
+        conRodillo.animacionBarra = .rodillo
+        let ida = try! JSONDecoder().decode(Ajustes.self, from: try! JSONEncoder().encode(conRodillo))
+        comprobar("guardar y leer la animación", ida.animacionBarra, .rodillo)
+
         print(fallos == 0 ? "ok" : "\(fallos) fallos")
         exit(fallos == 0 ? 0 : 1)
     }

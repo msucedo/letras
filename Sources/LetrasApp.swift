@@ -128,6 +128,14 @@ struct PanelView: View {
     private var opciones: some View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle("Línea actual en la barra de menú", isOn: $store.ajustes.lineaEnLaBarra)
+            Picker("Animación en la barra", selection: $store.ajustes.animacionBarra) {
+                ForEach(AnimacionBarra.allCases) { animacion in
+                    Text(animacion.nombre).tag(animacion)
+                }
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .disabled(!store.ajustes.lineaEnLaBarra)
             Toggle("Ventana flotante", isOn: $store.ajustes.flotante)
             Stepper(value: $store.ajustes.ajuste, in: -5...5, step: 0.25) {
                 Text("Desfase de la letra: \(Self.formato(store.ajustes.ajuste))")
@@ -145,8 +153,32 @@ struct PanelView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+            Divider()
+            acercaDe
         }
         .toggleStyle(.switch)
+    }
+
+    private var acercaDe: some View {
+        // El gris va solo en los textos: los enlaces se quedan del color de acento, para que se vea
+        // que se pueden abrir.
+        HStack(spacing: 4) {
+            Text("Letras \(Self.version) · by").foregroundStyle(.secondary)
+            Link("@msucedo", destination: URL(string: "https://github.com/msucedo")!)
+            Text("· Letras de").foregroundStyle(.secondary)
+            Link("LRCLIB", destination: URL(string: "https://lrclib.net")!)
+        }
+        .font(.caption)
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    /// "0.1.0 (1)": la versión y el número de compilación del Info.plist.
+    static var version: String {
+        let info = Bundle.main.infoDictionary
+        let corta = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let compilacion = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(corta) (\(compilacion))"
     }
 
     static func formato(_ segundos: Double) -> String {

@@ -58,6 +58,9 @@ struct PanelView: View {
     @State private var abierto = false
     /// Se pone en true al abrirse el panel, para que el contenido aparezca con una animación.
     @State private var aparecido = false
+    /// Si el panel se ve. Cerrado, la letra no se dibuja: la vista del panel sobrevive a cerrarlo y
+    /// seguiría recalculándose y animándose con cada línea sin que nadie la vea.
+    @State private var visible = false
     // Si la app abre al iniciar sesión lo sabe el sistema, no los ajustes, así que se le pregunta
     // a SMAppService en vez de guardarlo aparte.
     @State private var alIniciarSesion = SMAppService.mainApp.status == .enabled
@@ -66,8 +69,14 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             encabezado
-            LetraView(monitor: monitor)
-                .frame(height: 340)
+            Group {
+                if visible {
+                    LetraView(monitor: monitor)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(height: 340)
             if !monitor.sinPermiso.isEmpty {
                 avisoDePermiso
             }
@@ -97,6 +106,7 @@ struct PanelView: View {
         // La vista del panel sobrevive a cerrarlo, así que las opciones se cierran y la animación de
         // entrada se reinicia al esconderse; como ya no está en pantalla, no se ve.
         .background(VigilaVentana { visible in
+            self.visible = visible
             if visible {
                 withAnimation(.easeOut(duration: 0.25)) { aparecido = true }
             } else {
@@ -352,14 +362,29 @@ struct LetraView: View {
         .onPreferenceChange(CentrosDeLineas.self) { nuevos in
             let primeraVez = centros.isEmpty
             centros = nuevos
-            if primeraVez { centrar(animado: false) }
+            if primeraVez { centrarAlAbrir(nuevos) }
         }
         .onChange(of: monitor.indice) { _ in centrar(animado: true) }
     }
 
-    private func centrar(animado: Bool) {
-        guard let vista = scroll.vista, let documento = vista.documentView,
-              let centro = centros[monitor.indice ?? 0] else { return }
+    /// Al abrir el panel la letra se crea desde cero y, cuando llegan las medidas de las líneas,
+    /// SwiftUI todavía no conecta el NSScrollView: se reintenta en las siguientes vueltas del run
+    /// loop (milisegundos cada una) hasta que esté, para que abra ya en la línea actual.
+    /// Ya centrada, se repite una vez en la siguiente vuelta por si AppKit todavía estaba
+    /// acomodando el alto de la letra; si ya quedó bien, no se mueve.
+    private func centrarAlAbrir(_ centros: [Int: CGFloat], intentos: Int = 20) {
+        if centrar(animado: false, centros: centros) {
+            DispatchQueue.main.async { centrar(animado: false) }
+        } else if intentos > 0 {
+            DispatchQueue.main.async { centrarAlAbrir(centros, intentos: intentos - 1) }
+        }
+    }
+
+    /// Devuelve si pudo: falla mientras el NSScrollView no está listo.
+    @discardableResult
+    private func centrar(animado: Bool, centros: [Int: CGFloat]? = nil) -> Bool {
+        guard let vista = scroll.vista, let documento = vista.documentView, documento.frame.height > 0,
+              let centro = (centros ?? self.centros)[monitor.indice ?? 0] else { return false }
         let clip = vista.contentView
         let visible = clip.bounds.height
         let alto = documento.frame.height
@@ -377,6 +402,7 @@ struct LetraView: View {
             clip.setBoundsOrigin(destino)
         }
         vista.reflectScrolledClipView(clip)
+        return true
     }
 
     private func mensaje(_ texto: String, icono: String) -> some View {

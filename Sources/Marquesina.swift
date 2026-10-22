@@ -77,17 +77,32 @@ final class Marquesina: ObservableObject {
     /// El ancho después del icono en el último cuadro dibujado.
     private var anchoMostrado: CGFloat = 0
     /// El último cuadro que se dibujó (texto, desplazamiento y ancho), para no volver a generar la
-    /// misma imagen 30 veces por segundo mientras el título espera en una orilla.
+    /// misma imagen 30 veces por segundo mientras el texto espera quieto.
     private var ultimoCuadro: (texto: NSAttributedString?, desplazamiento: CGFloat, ancho: CGFloat)?
     private var nivel = Nivel.completo
     private var anchoMaximo: CGFloat { nivel.anchoMaximo }
     private var timer: Timer?
     private var observaciones: [AnyCancellable] = []
 
+    /// El símbolo ya pasado a mapa de bits (a 2x), una sola vez: dibujar el símbolo desde cero en
+    /// cada cuadro de la marquesina costaba más que el texto.
     private static let icono: NSImage = {
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
-        return NSImage(systemSymbolName: "music.quarternote.3", accessibilityDescription: "Letras")!
+        let simbolo = NSImage(systemSymbolName: "music.quarternote.3", accessibilityDescription: "Letras")!
             .withSymbolConfiguration(config)!
+        let escala: CGFloat = 2
+        let mapa = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(ceil(simbolo.size.width * escala)),
+                                    pixelsHigh: Int(ceil(simbolo.size.height * escala)), bitsPerSample: 8,
+                                    samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        mapa.size = simbolo.size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: mapa)
+        simbolo.draw(in: NSRect(origin: .zero, size: simbolo.size))
+        NSGraphicsContext.restoreGraphicsState()
+        let imagen = NSImage(size: simbolo.size)
+        imagen.addRepresentation(mapa)
+        return imagen
     }()
 
     init(monitor: Monitor, store: AjustesStore, tienda: Tienda) {
@@ -165,8 +180,9 @@ final class Marquesina: ObservableObject {
         } else {
             anchoMostrado = anchoFinal
         }
-        // Mientras el título espera en una orilla, el cuadro sale igual al anterior: no se vuelve a dibujar.
-        let repetido = transicion == nil && segmento?.esTitulo == true && ultimoCuadro.map {
+        // Si el cuadro sale igual al anterior (el texto espera al principio o ya llegó al final), no
+        // se vuelve a dibujar.
+        let repetido = transicion == nil && ultimoCuadro.map {
             $0.texto === texto && $0.desplazamiento == desplazamiento && $0.ancho == anchoMostrado
         } == true
         if !repetido {

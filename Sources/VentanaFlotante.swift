@@ -56,8 +56,12 @@ final class VentanaFlotante {
                 MainActor.assumeIsolated {
                     // Si se volvió a encender mientras se iba, ya no se esconde.
                     guard let self, let panel, !self.store.ajustes.flotante else { return }
-                    panel.orderOut(nil)
                     panel.setFrameOrigin(lugar)
+                    panel.orderOut(nil)
+                    // Se suelta la ventana: escondida, su vista seguiría redibujándose con cada línea.
+                    // AppKit ya guardó dónde estaba, y al volver a encenderla se crea otra ahí mismo.
+                    self.panel = nil
+                    self.lugar = nil
                 }
             }
             return

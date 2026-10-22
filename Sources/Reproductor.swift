@@ -39,12 +39,15 @@ final class Reproductor {
     let notificacion: Notification.Name
     private let fuente: String
     private var script: NSAppleScript?
+    private let fuenteRapida: String
+    private var scriptRapido: NSAppleScript?
 
     private init(nombre: String, bundleID: String, notificacion: String, script: String) {
         self.nombre = nombre
         self.bundleID = bundleID
         self.notificacion = Notification.Name(notificacion)
         self.fuente = script
+        self.fuenteRapida = Self.guionRapido(app: bundleID)
     }
 
     // Las dos apps entienden casi el mismo AppleScript; la diferencia está en la duración, que
@@ -84,17 +87,55 @@ final class Reproductor {
         """
     }
 
+    /// Solo estado, título y posición: 3 preguntas al reproductor en lugar de 7. Es lo que se lee
+    /// cada segundo; el resto de la canción solo cambia con un aviso del reproductor.
+    private static func guionRapido(app: String) -> String {
+        """
+        with timeout of 2 seconds
+            tell application id "\(app)"
+                set estado to player state
+                if estado is stopped then return {"detenido"}
+                if estado is playing then
+                    set e to "reproduciendo"
+                else
+                    set e to "pausa"
+                end if
+                return {e, name of current track, player position}
+            end tell
+        end timeout
+        """
+    }
+
     var estaAbierto: Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
     }
 
     /// Pregunta al reproductor qué suena. Hay que llamarlo en el hilo principal (NSAppleScript no
     /// es seguro en otros hilos), y solo si está abierto: si no, AppleScript lo abriría.
-    func leer() -> Result<Lectura, ErrorDeReproductor> {
+    /// Con `cancion` (la que ya se sabe que suena) hace la lectura rápida y, si sigue siendo la
+    /// misma, solo actualiza estado y posición; si cambió o se detuvo, hace la completa.
+    func leer(sabiendo cancion: Cancion? = nil) -> Result<Lectura, ErrorDeReproductor> {
         guard estaAbierto else { return .failure(.noAbierto) }
-        if script == nil {
-            script = NSAppleScript(source: fuente)
+        if let cancion {
+            if scriptRapido == nil { scriptRapido = NSAppleScript(source: fuenteRapida) }
+            switch Self.ejecutar(scriptRapido) {
+            case .success(let lista):
+                if lista.numberOfItems >= 3, lista.atIndex(2)?.stringValue == cancion.titulo {
+                    return .success(Lectura(estado: lista.atIndex(1)?.stringValue == "reproduciendo" ? .reproduciendo : .enPausa,
+                                            cancion: cancion, posicion: lista.atIndex(3)?.doubleValue ?? 0))
+                }
+            case .failure(let error):
+                return .failure(error)
+            }
         }
+        if script == nil { script = NSAppleScript(source: fuente) }
+        return Self.ejecutar(script).map(Self.interpretar)
+    }
+
+    /// Recibe el script ya compilado y no la propiedad: mientras corre, AppleScript atiende otros
+    /// eventos y puede llegar un aviso que vuelva a leer; con la propiedad como inout eso era un
+    /// acceso simultáneo y la app se cerraba.
+    private static func ejecutar(_ script: NSAppleScript?) -> Result<NSAppleEventDescriptor, ErrorDeReproductor> {
         var error: NSDictionary?
         guard let resultado = script?.executeAndReturnError(&error) else {
             let numero = error?[NSAppleScript.errorNumber] as? Int
@@ -105,7 +146,7 @@ final class Reproductor {
             default: return .failure(.otro(error?[NSAppleScript.errorMessage] as? String ?? "Error \(numero ?? 0)"))
             }
         }
-        return .success(Self.interpretar(resultado))
+        return .success(resultado)
     }
 
     private static func interpretar(_ lista: NSAppleEventDescriptor) -> Lectura {

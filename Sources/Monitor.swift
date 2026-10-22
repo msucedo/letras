@@ -108,9 +108,10 @@ final class Monitor: ObservableObject {
         }
     }
 
-    /// Un reproductor avisó que algo cambió, o toca corregir la posición del que suena.
-    private func revisar(_ reproductor: Reproductor) {
-        guard let lectura = leer(reproductor) else {
+    /// Un reproductor avisó que algo cambió, o toca corregir la posición del que suena (`rapido`:
+    /// solo estado y posición, si sigue la misma canción).
+    private func revisar(_ reproductor: Reproductor, rapido: Bool = false) {
+        guard let lectura = leer(reproductor, sabiendo: rapido ? cancion : nil) else {
             if reproductor === activo { buscarReproductor() }
             return
         }
@@ -123,8 +124,8 @@ final class Monitor: ObservableObject {
         }
     }
 
-    private func leer(_ reproductor: Reproductor) -> Lectura? {
-        switch reproductor.leer() {
+    private func leer(_ reproductor: Reproductor, sabiendo cancion: Cancion? = nil) -> Lectura? {
+        switch reproductor.leer(sabiendo: cancion) {
         case .success(let lectura):
             sinPermiso.removeAll { $0 == reproductor.nombre }
             return lectura
@@ -197,7 +198,7 @@ final class Monitor: ObservableObject {
             timerLectura = Timer.scheduledTimer(withTimeInterval: Self.cadaLectura, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self, let activo = self.activo else { return }
-                    self.revisar(activo)
+                    self.revisar(activo, rapido: true)
                 }
             }
             timerTic = Timer.scheduledTimer(withTimeInterval: Self.cadaTic, repeats: true) { [weak self] _ in

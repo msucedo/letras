@@ -2,6 +2,8 @@
 
 La letra de la canción que suena en **Spotify** o en **Música** (Apple Music), sincronizada línea por línea, desde la barra de menú de la Mac.
 
+![La barra de menú con la línea actual y el panel con la letra](appstore/capturas/1-panel.png)
+
 - **En la barra de menú:** la línea que se está cantando, junto al icono. Se puede apagar y dejar solo el icono.
 - **En el panel:** la letra completa, con la línea actual resaltada y siempre al centro.
 - **Ventana flotante:** la línea anterior, la actual y la siguiente, estilo karaoke, encima de las demás ventanas (también en pantalla completa). Se arrastra a donde quieras; clic derecho para ocultarla.
@@ -9,6 +11,10 @@ La letra de la canción que suena en **Spotify** o en **Música** (Apple Music),
 - Las letras vienen de [LRCLIB](https://lrclib.net), una base de datos abierta y gratuita, y se guardan en la Mac: una canción que ya sonó tiene letra aunque no haya internet.
 
 Requiere **macOS 13 (Ventura) o más nuevo**.
+
+| Ventana flotante | Ajustes | Barra de menú |
+| --- | --- | --- |
+| ![La ventana flotante estilo karaoke](appstore/capturas/2-flotante.png) | ![Los ajustes del panel](appstore/capturas/3-ajustes.png) | ![La línea actual en la barra de menú](appstore/capturas/4-barra.png) |
 
 ## Gratis y con café
 

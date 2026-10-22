@@ -107,26 +107,54 @@ private final class VistaArrastrable<Contenido: View>: NSHostingView<Contenido> 
     }
 }
 
-/// Tamaño fijo: si cambiara con cada línea, la ventana brincaría.
+/// Tamaño fijo: si cambiara con cada línea, la ventana brincaría. Cabe la línea actual en dos
+/// renglones, para que las largas se lean completas.
 private struct KaraokeView: View {
     @ObservedObject var monitor: Monitor
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text(linea(-1))
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-            Text(principal)
-                .font(.system(size: 16, weight: .semibold))
-            Text(linea(+1))
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+        Group {
+            if lineas.isEmpty {
+                Text(mensaje)
+                    .font(.system(size: 16, weight: .semibold))
+                    .id(mensaje)
+                    .transition(.opacity)
+            } else {
+                rodillo
+            }
         }
-        .lineLimit(1)
-        .truncationMode(.tail)
+        .animation(.easeInOut(duration: 0.35), value: monitor.indice)
+        .animation(.easeInOut(duration: 0.25), value: mensaje)
         .padding(.horizontal, 20)
-        .frame(width: 520, height: 96)
+        .frame(width: 520, height: 124)
+        // Las líneas que entran y salen se deslizan desde fuera del recuadro.
+        .clipped()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// La anterior, la actual y la siguiente, identificadas por su número de línea: al avanzar,
+    /// SwiftUI ve las mismas líneas en otro lugar y las anima subiendo, como un rodillo. La que
+    /// sale se va por arriba y la nueva entra por abajo.
+    private var rodillo: some View {
+        let actual = monitor.indice ?? -1
+        return VStack(spacing: 6) {
+            ForEach([actual - 1, actual, actual + 1], id: \.self) { i in
+                let esActual = i == actual
+                Text(texto(i))
+                    // La misma letra para todas: el tamaño cambia con scaleEffect, que sí se
+                    // anima; un cambio de font brincaría de golpe.
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(esActual ? 2 : 1)
+                    .minimumScaleFactor(esActual ? 0.85 : 1)
+                    .truncationMode(.tail)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .scaleEffect(esActual ? 1 : 0.875)
+                    .opacity(esActual ? 1 : 0.55)
+                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity),
+                                            removal: .move(edge: .top).combined(with: .opacity)))
+            }
+        }
     }
 
     private var lineas: [Linea] {
@@ -134,12 +162,18 @@ private struct KaraokeView: View {
         return []
     }
 
-    /// La línea que se canta; antes de la primera, nada (la primera ya se ve como la siguiente).
-    private var principal: String {
+    /// El texto de la línea i. Antes de la primera (i = -1) va una nota, mientras empieza a cantar;
+    /// fuera de la letra, nada.
+    private func texto(_ i: Int) -> String {
+        if i == -1 { return "♪" }
+        guard lineas.indices.contains(i) else { return " " }
+        return lineas[i].texto.isEmpty ? "♪" : lineas[i].texto
+    }
+
+    /// Lo que se muestra cuando no hay letra sincronizada.
+    private var mensaje: String {
         switch monitor.letra {
-        case .lista(.sincronizada):
-            guard let i = monitor.indice else { return "♪" }
-            return lineas[i].texto.isEmpty ? "♪" : lineas[i].texto
+        case .lista(.sincronizada): return ""
         case .lista(.simple): return "Letra no sincronizada"
         case .lista(.instrumental): return "Instrumental"
         case .buscando: return "Buscando la letra…"
@@ -147,11 +181,5 @@ private struct KaraokeView: View {
         case .sinConexion: return "Sin conexión"
         case .nadaSonando: return "Nada sonando"
         }
-    }
-
-    private func linea(_ desplazamiento: Int) -> String {
-        guard !lineas.isEmpty else { return " " }
-        let i = (monitor.indice ?? -1) + desplazamiento
-        return lineas.indices.contains(i) ? lineas[i].texto : " "
     }
 }

@@ -12,7 +12,7 @@ struct LetrasApp: App {
         MenuBarExtra {
             PanelView(monitor: delegado.monitor, store: delegado.store)
         } label: {
-            EtiquetaBarra(monitor: delegado.monitor, store: delegado.store)
+            EtiquetaBarra(marquesina: delegado.marquesina)
         }
         .menuBarExtraStyle(.window)
     }
@@ -24,6 +24,7 @@ struct LetrasApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = AjustesStore()
     let monitor = Monitor()
+    lazy var marquesina = Marquesina(monitor: monitor, store: store)
     private var flotante: VentanaFlotante?
     private var observaciones: [AnyCancellable] = []
 
@@ -37,25 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// El icono y la línea que se canta, ya dibujados por la marquesina.
 struct EtiquetaBarra: View {
-    @ObservedObject var monitor: Monitor
-    @ObservedObject var store: AjustesStore
-    /// La barra de menú no recorta el texto: una línea larga empujaría a los demás iconos.
-    static let largoMaximo = 45
+    @ObservedObject var marquesina: Marquesina
 
     var body: some View {
-        if store.ajustes.lineaEnLaBarra, let linea = monitor.lineaActual {
-            HStack(spacing: 4) {
-                Image(systemName: "music.quarternote.3")
-                Text(Self.recortar(linea))
-            }
-        } else {
-            Image(systemName: "music.quarternote.3")
-        }
-    }
-
-    static func recortar(_ linea: String) -> String {
-        linea.count <= largoMaximo ? linea : linea.prefix(largoMaximo - 1).trimmingCharacters(in: .whitespaces) + "…"
+        Image(nsImage: marquesina.imagen)
     }
 }
 
@@ -225,9 +213,14 @@ struct LetraView: View {
                     ForEach(Array(lineas.enumerated()), id: \.offset) { i, linea in
                         let actual = i == monitor.indice
                         Text(linea.texto.isEmpty ? "♪" : linea.texto)
-                            .font(.system(size: 15, weight: actual ? .bold : .regular))
+                            // El grosor no se anima (brinca de golpe); el color y la escala sí.
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(actual ? Color.primary : Color.secondary)
+                            .scaleEffect(actual ? 1.05 : 1, anchor: .leading)
+                            .animation(.easeInOut(duration: 0.3), value: actual)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            // Espacio para lo que crece la línea actual, para que no se corte.
+                            .padding(.trailing, 16)
                             .id(i)
                     }
                 }

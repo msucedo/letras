@@ -19,3 +19,7 @@ La versión que se descarga de esta página (el DMG) trae todo incluido.
 ## Permisos
 
 La primera vez que suena algo, macOS pregunta si Letras puede controlar Spotify o Música. Hace falta para saber qué canción suena y en qué segundo va; Letras no cambia nada en el reproductor. Si se negó, se activa en **Ajustes del Sistema > Privacidad y seguridad > Automatización > Letras**.
+
+## Licencia
+
+[MIT](LICENSE). Las letras son de sus autores y vienen de LRCLIB; la licencia solo cubre el código de la app.

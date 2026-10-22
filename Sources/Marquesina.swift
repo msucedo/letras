@@ -62,6 +62,7 @@ final class Marquesina: ObservableObject {
 
     private let monitor: Monitor
     private let store: AjustesStore
+    private let tienda: Tienda
     private var segmento: Segmento?
     private var texto: NSAttributedString?
     private var desplazamiento: CGFloat = 0
@@ -83,9 +84,10 @@ final class Marquesina: ObservableObject {
             .withSymbolConfiguration(config)!
     }()
 
-    init(monitor: Monitor, store: AjustesStore) {
+    init(monitor: Monitor, store: AjustesStore, tienda: Tienda) {
         self.monitor = monitor
         self.store = store
+        self.tienda = tienda
         imagen = Self.dibujar(entrante: nil, desplazamientoEntrante: 0, saliente: nil, progreso: 1, extra: 0,
                               animacion: nil, anchoMaximo: Nivel.completo.anchoMaximo)
         // Cambia la canción, la línea, la letra, se pausa o se reanuda, o se apaga el texto en la barra.
@@ -111,7 +113,8 @@ final class Marquesina: ObservableObject {
             : nil
         if nuevo?.texto != segmento?.texto {
             // Si ya iba una transición, la que estaba saliendo desaparece y sale la que entraba.
-            let animacion = store.ajustes.animacionBarra
+            // Elegir la animación es lo que desbloquea el café; sin él, siempre fundido.
+            let animacion = tienda.desbloqueado ? store.ajustes.animacionBarra : .fundido
             if animacion == .ninguna {
                 transicion = nil
                 saliente = nil

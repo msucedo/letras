@@ -10,7 +10,7 @@ struct LetrasApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            PanelView(monitor: delegado.monitor, store: delegado.store)
+            PanelView(monitor: delegado.monitor, store: delegado.store, tienda: delegado.tienda)
         } label: {
             EtiquetaBarra(marquesina: delegado.marquesina)
         }
@@ -24,7 +24,8 @@ struct LetrasApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = AjustesStore()
     let monitor = Monitor()
-    lazy var marquesina = Marquesina(monitor: monitor, store: store)
+    let tienda = Tienda()
+    lazy var marquesina = Marquesina(monitor: monitor, store: store, tienda: tienda)
     private var flotante: VentanaFlotante?
     private var observaciones: [AnyCancellable] = []
 
@@ -35,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [monitor] in monitor.ajuste = $0 }
             .store(in: &observaciones)
         flotante = VentanaFlotante(monitor: monitor, store: store)
+        tienda.empezar()
     }
 }
 
@@ -50,6 +52,7 @@ struct EtiquetaBarra: View {
 struct PanelView: View {
     @ObservedObject var monitor: Monitor
     @ObservedObject var store: AjustesStore
+    @ObservedObject var tienda: Tienda
     /// Si están a la vista las opciones de abajo de la letra. Cada vez que se abre el panel empiezan
     /// cerradas, aunque se hayan dejado abiertas la vez anterior.
     @State private var abierto = false
@@ -152,7 +155,14 @@ struct PanelView: View {
             }
             .pickerStyle(.menu)
             .fixedSize()
-            .disabled(!store.ajustes.lineaEnLaBarra)
+            .disabled(!store.ajustes.lineaEnLaBarra || !tienda.desbloqueado)
+            if !tienda.desbloqueado {
+                cafe
+            } else if Tienda.enTienda {
+                Text("Gracias por el café ☕")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Toggle("Ventana flotante", isOn: $store.ajustes.flotante)
             Stepper(value: $store.ajustes.ajuste, in: -5...5, step: 0.25) {
                 Text("Desfase de la letra: \(Self.formato(store.ajustes.ajuste))")
@@ -174,6 +184,39 @@ struct PanelView: View {
             acercaDe
         }
         .toggleStyle(.switch)
+    }
+
+    /// La compra que desbloquea elegir la animación (solo en la versión de la Mac App Store).
+    private var cafe: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Task { await tienda.comprar() }
+            } label: {
+                if let producto = tienda.producto {
+                    Text("☕ Invítame un café (\(producto.displayPrice)) y elige la animación")
+                } else {
+                    Text("☕ Invítame un café y elige la animación")
+                }
+            }
+            .disabled(tienda.ocupada || tienda.cargando)
+            HStack(spacing: 12) {
+                Button("Restaurar compra") { Task { await tienda.restaurar() } }
+                if tienda.producto == nil, !tienda.cargando {
+                    Button("Reintentar") { Task { await tienda.cargarProducto() } }
+                }
+                if tienda.ocupada || tienda.cargando {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+            .disabled(tienda.ocupada)
+            if let mensaje = tienda.mensaje {
+                Text(mensaje)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var acercaDe: some View {

@@ -77,8 +77,7 @@ struct PanelView: View {
                 abierto.toggle()
             } label: {
                 Image(systemName: "chevron.down")
-                    .rotationEffect(.degrees(abierto ? 180 : 0))
-                    .animation(.easeInOut(duration: 0.2), value: abierto)
+                    .modifier(GiroDeFlecha(abierto: abierto))
                     .frame(maxWidth: .infinity, minHeight: 18)
                     .contentShape(Rectangle())
             }
@@ -261,6 +260,25 @@ struct PanelView: View {
             errorDeInicio = "Apruébalo en Ajustes del Sistema > General > Ítems de inicio."
         }
         alIniciarSesion = SMAppService.mainApp.status == .enabled
+    }
+}
+
+/// Gira la flecha de las opciones. En macOS 14+ la animación se limita al giro: con
+/// .animation(_:value:) también se animaba la posición de la flecha, que al cerrar las opciones
+/// subía desde abajo mientras el panel se encogía.
+private struct GiroDeFlecha: ViewModifier {
+    let abierto: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 14, *) {
+            content.animation(.easeInOut(duration: 0.2)) {
+                $0.rotationEffect(.degrees(abierto ? 180 : 0))
+            }
+        } else {
+            content
+                .rotationEffect(.degrees(abierto ? 180 : 0))
+                .animation(.easeInOut(duration: 0.2), value: abierto)
+        }
     }
 }
 

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Letras: la letra de lo que suena, en tu barra de menú</title>
+<meta name="description" content="Letras sincronizadas línea por línea con Spotify y Música (Apple Music), en la barra de menú de la Mac. Gratis, sin cuentas y sin rastreo.">
+<meta name="theme-color" content="#2a1530">
+<link rel="icon" type="image/png" href="img/icono.png">
+<link rel="apple-touch-icon" href="img/icono.png">
+<link rel="canonical" href="https://msucedo.github.io/letras/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Letras">
+<meta property="og:title" content="Letras: la letra de lo que suena, en tu barra de menú">
+<meta property="og:description" content="Sincronizada línea por línea con Spotify y Música (Apple Music). Gratis para Mac.">
+<meta property="og:url" content="https://msucedo.github.io/letras/">
+<meta property="og:image" content="https://msucedo.github.io/letras/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="es_MX">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Letras: la letra de lo que suena, en tu barra de menú">
+<meta name="twitter:description" content="Sincronizada línea por línea con Spotify y Música (Apple Music). Gratis para Mac.">
+<meta name="twitter:image" content="https://msucedo.github.io/letras/img/og.jpg">
+
+<style>
+  :root {
+    --fondo: #faf7fb;
+    --fondo-2: #ffffff;
+    --texto: #1d1420;
+    --suave: #5f5466;
+    --borde: #e7dfeb;
+    --acento: #c2378f;
+    --acento-2: #6a3bc4;
+    --sobre-acento: #ffffff;
+    --sombra: 0 10px 30px rgba(60, 20, 70, .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #140c17;
+      --fondo-2: #1f1424;
+      --texto: #f4eef6;
+      --suave: #b7a9bd;
+      --borde: #34253a;
+      --acento: #f0559f;
+      --acento-2: #9a6cf0;
+      --sombra: 0 10px 40px rgba(0, 0, 0, .45);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  a { color: var(--acento); }
+  img { max-width: 100%; height: auto; display: block; }
+  .ancho { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+  /* Portada */
+  .portada {
+    padding: 64px 0 40px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 0%, color-mix(in srgb, var(--acento) 18%, transparent), transparent),
+      var(--fondo);
+  }
+  .portada .icono { width: 96px; height: 96px; margin: 0 auto 20px; }
+  h1 {
+    font-size: clamp(32px, 6vw, 56px);
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    margin: 0 auto 16px;
+    max-width: 16ch;
+  }
+  .bajada { font-size: clamp(18px, 2.4vw, 21px); color: var(--suave); max-width: 34em; margin: 0 auto 28px; }
+  .botones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .boton {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 24px; border-radius: 999px;
+    font-weight: 600; text-decoration: none;
+    background: linear-gradient(135deg, var(--acento), var(--acento-2));
+    color: var(--sobre-acento);
+    box-shadow: var(--sombra);
+  }
+  .boton.secundario { background: var(--fondo-2); color: var(--texto); border: 1px solid var(--borde); box-shadow: none; }
+  .boton:hover { filter: brightness(1.06); }
+  .nota { font-size: 14px; color: var(--suave); margin-top: 14px; }
+  .demo {
+    margin: 40px auto 0; max-width: 645px;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: var(--sombra); border: 1px solid var(--borde);
+  }
+
+  /* Secciones */
+  section { padding: 56px 0; }
+  h2 { font-size: clamp(26px, 4vw, 34px); letter-spacing: -.01em; margin: 0 0 8px; text-align: center; }
+  .intro { color: var(--suave); text-align: center; max-width: 36em; margin: 0 auto 32px; }
+  .funciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .tarjeta {
+    background: var(--fondo-2); border: 1px solid var(--borde);
+    border-radius: 16px; padding: 22px;
+  }
+  .tarjeta h3 { margin: 0 0 6px; font-size: 18px; }
+  .tarjeta p { margin: 0; color: var(--suave); font-size: 15.5px; }
+
+  .capturas { display: grid; gap: 28px; }
+  figure { margin: 0; }
+  figure img { border-radius: 12px; border: 1px solid var(--borde); box-shadow: var(--sombra); }
+  figcaption { text-align: center; color: var(--suave); font-size: 15px; margin-top: 10px; }
+  @media (min-width: 760px) {
+    .capturas { grid-template-columns: 1fr 1fr; }
+    .capturas figure:first-child { grid-column: 1 / -1; }
+  }
+
+  .cafe {
+    background: var(--fondo-2); border: 1px solid var(--borde);
+    border-radius: 20px; padding: 32px 24px; text-align: center;
+    max-width: 720px; margin: 0 auto;
+  }
+  .cafe p { color: var(--suave); margin: 8px auto 0; max-width: 34em; }
+
+  .pasos { max-width: 640px; margin: 0 auto; padding-left: 1.3em; }
+  .pasos li { margin-bottom: 10px; }
+  .pasos li::marker { color: var(--acento); font-weight: 700; }
+
+  footer {
+    border-top: 1px solid var(--borde);
+    padding: 28px 0 40px; text-align: center;
+    color: var(--suave); font-size: 14.5px;
+  }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+
+<header class="portada">
+  <div class="ancho">
+    <img class="icono" src="img/icono.png" width="96" height="96" alt="">
+    <h1>La letra de lo que suena, en tu barra de menú</h1>
+    <p class="bajada">Letras muestra la letra de la canción que suena en <strong>Spotify</strong> o en <strong>Música</strong> (Apple Music), sincronizada línea por línea, desde la barra de menú de la Mac.</p>
+    <div class="botones">
+      <a class="boton" href="https://github.com/msucedo/letras/releases/latest">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+        Descargar para Mac
+      </a>
+      <a class="boton secundario" href="https://github.com/msucedo/letras">Ver en GitHub</a>
+    </div>
+    <p class="nota">Gratis · macOS 13 (Ventura) o más nuevo · App firmada y notarizada por Apple</p>
+    <img class="demo" src="letras.gif" width="1290" height="1000" alt="La línea actual cambia en la barra de menú mientras el panel avanza por la letra">
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="ancho">
+      <h2>Canta sin buscar la letra</h2>
+      <p class="intro">Pones play y la letra aparece sola. Puedes verla de tres formas.</p>
+      <div class="funciones">
+        <div class="tarjeta">
+          <h3>En la barra de menú</h3>
+          <p>La línea que se está cantando, junto al icono. Si prefieres, la apagas y queda solo el icono.</p>
+        </div>
+        <div class="tarjeta">
+          <h3>En el panel</h3>
+          <p>La letra completa, con la línea actual resaltada y siempre al centro.</p>
+        </div>
+        <div class="tarjeta">
+          <h3>Ventana flotante</h3>
+          <p>La línea anterior, la actual y la siguiente, estilo karaoke, encima de todo (también en pantalla completa).</p>
+        </div>
+        <div class="tarjeta">
+          <h3>Desfase y sin internet</h3>
+          <p>Si una letra va atrasada o adelantada, la ajustas de 0.25 s en 0.25 s. Las canciones que ya sonaron conservan su letra aunque no haya internet.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="ancho capturas">
+      <figure>
+        <img src="img/panel.jpg" width="1440" height="900" loading="lazy" alt="El panel con la letra completa y la línea actual resaltada">
+        <figcaption>El panel: la letra completa, siempre centrada en la línea actual.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/flotante.jpg" width="1440" height="900" loading="lazy" alt="La ventana flotante estilo karaoke">
+        <figcaption>Ventana flotante estilo karaoke.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/ajustes.jpg" width="1440" height="900" loading="lazy" alt="Los ajustes del panel">
+        <figcaption>Ajustes: la barra, la ventana flotante y el desfase.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="ancho">
+      <h2>Instalar</h2>
+      <ol class="pasos">
+        <li><a href="https://github.com/msucedo/letras/releases/latest">Descarga el DMG</a> más reciente y ábrelo.</li>
+        <li>Arrastra <strong>Letras</strong> a la carpeta <strong>Aplicaciones</strong> y ábrela. Aparece en la barra de menú.</li>
+        <li>Pon una canción. La primera vez, macOS pregunta si Letras puede controlar Spotify o Música: di que sí. Así sabe qué suena y en qué segundo va. Letras no cambia nada en el reproductor.</li>
+      </ol>
+      <p class="intro" style="margin-top:20px">¿Dijiste que no por error? Actívalo en <strong>Ajustes del Sistema › Privacidad y seguridad › Automatización › Letras</strong>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="ancho">
+      <div class="cafe">
+        <h2>Gratis, y con café ☕</h2>
+        <p>Todo lo de arriba es gratis. En la Mac App Store, <strong>“Invítame un café”</strong> es una compra única que además deja elegir cómo cambia la línea en la barra: deslizar, rodillo, revelado, fundido o sin animación. El DMG de esta página trae todo incluido.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="ancho">
+      <h2>Tu música es tuya</h2>
+      <p class="intro">Sin cuentas, sin analíticas, sin publicidad y sin rastreo. Para buscar la letra solo se envían el título, el artista, el álbum y la duración a <a href="https://lrclib.net">LRCLIB</a>, una base de datos abierta y gratuita. <a href="https://github.com/msucedo/letras/blob/main/PRIVACY.md">Política de privacidad</a>.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="ancho">
+    <p>Letras · código abierto con licencia <a href="https://github.com/msucedo/letras/blob/main/LICENSE">MIT</a> · <a href="https://github.com/msucedo/letras">GitHub</a> · by @msucedo</p>
+    <p>Las letras son de sus autores y vienen de LRCLIB. Spotify y Apple Music son marcas de sus respectivos dueños; Letras no está afiliada a ellas.</p>
+  </div>
+</footer>
+
+</body>
+</html>

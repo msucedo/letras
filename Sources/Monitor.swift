@@ -132,8 +132,32 @@ final class Monitor: ObservableObject {
         case .failure(.sinPermiso):
             if !sinPermiso.contains(reproductor.nombre) { sinPermiso.append(reproductor.nombre) }
             return nil
+        case .failure(.faltaPermiso):
+            pedirPermiso(a: reproductor)
+            return nil
         case .failure:
             return nil
+        }
+    }
+
+    /// Muestra el aviso de macOS para controlar el reproductor. Mientras está en pantalla, `leer`
+    /// no manda nada (así no sale dos veces); cuando contestan, se vuelve a leer al momento.
+    private func pedirPermiso(a reproductor: Reproductor) {
+        guard reproductor.permiso == .desconocido else { return }
+        reproductor.permiso = .preguntando
+        let bundleID = reproductor.bundleID
+        Task { [weak self] in
+            // La espera va en otro hilo; la respuesta se atiende de vuelta en el MainActor.
+            let respuesta = await Task.detached {
+                Reproductor.consultarPermiso(bundleID: bundleID, preguntar: true)
+            }.value
+            reproductor.permiso = respuesta == noErr ? .concedido : .desconocido
+            guard let self else { return }
+            if respuesta == OSStatus(errAEEventNotPermitted) {
+                if !sinPermiso.contains(reproductor.nombre) { sinPermiso.append(reproductor.nombre) }
+            } else {
+                buscarReproductor()
+            }
         }
     }
 

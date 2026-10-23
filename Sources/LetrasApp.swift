@@ -195,11 +195,12 @@ struct PanelView: View {
         .toggleStyle(.switch)
     }
 
-    /// La compra que desbloquea elegir la animación (solo en la versión de la Mac App Store).
+    /// La compra que desbloquea elegir la animación (solo en la versión de la Mac App Store). Se
+    /// compra en VentanaCafe, no aquí: el panel se cierra al perder el foco.
     private var cafe: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button {
-                Task { await tienda.comprar() }
+                VentanaCafe.mostrar(tienda: tienda)
             } label: {
                 if let producto = tienda.producto {
                     Text("☕ Invítame un café (\(producto.displayPrice)) y elige la animación")

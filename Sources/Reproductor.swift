@@ -25,6 +25,8 @@ struct Lectura: Equatable {
 enum ErrorDeReproductor: Error, Equatable {
     /// El usuario no le dio permiso a Letras de controlar la app (Ajustes > Privacidad > Automatización).
     case sinPermiso
+    /// macOS todavía no le ha preguntado al usuario; hay que pedirlo con `consultarPermiso`.
+    case faltaPermiso
     case noAbierto
     case otro(String)
 }
@@ -41,6 +43,10 @@ final class Reproductor {
     private var script: NSAppleScript?
     private let fuenteRapida: String
     private var scriptRapido: NSAppleScript?
+
+    enum Permiso { case desconocido, preguntando, concedido }
+    /// Mientras no esté concedido, `leer` pregunta a macOS antes de mandar el AppleScript.
+    var permiso = Permiso.desconocido
 
     private init(nombre: String, bundleID: String, notificacion: String, script: String) {
         self.nombre = nombre
@@ -116,6 +122,34 @@ final class Reproductor {
     /// misma, solo actualiza estado y posición; si cambió o se detuvo, hace la completa.
     func leer(sabiendo cancion: Cancion? = nil) -> Result<Lectura, ErrorDeReproductor> {
         guard estaAbierto else { return .failure(.noAbierto) }
+        switch permiso {
+        case .concedido: break
+        case .preguntando: return .failure(.faltaPermiso)
+        case .desconocido:
+            switch Self.consultarPermiso(bundleID: bundleID, preguntar: false) {
+            case noErr: permiso = .concedido
+            case OSStatus(errAEEventWouldRequireUserConsent): return .failure(.faltaPermiso)
+            case OSStatus(procNotFound): return .failure(.noAbierto)
+            default: return .failure(.sinPermiso)
+            }
+        }
+        let resultado = leerConScript(sabiendo: cancion)
+        // Si lo quitó en Ajustes del Sistema, la próxima vez se vuelve a consultar.
+        if resultado == .failure(.sinPermiso) { permiso = .desconocido }
+        return resultado
+    }
+
+    /// Pregunta a macOS si Letras puede mandarle a la app los eventos de los guiones (`get`).
+    /// Con `preguntar`, macOS muestra el aviso y esto espera, sin límite, a que el usuario
+    /// conteste: por eso hay que llamarlo fuera del hilo principal. El aviso no puede salir de
+    /// un AppleScript: con su timeout de 2 segundos, macOS lo cerraba antes de que contestaran.
+    nonisolated static func consultarPermiso(bundleID: String, preguntar: Bool) -> OSStatus {
+        let destino = NSAppleEventDescriptor(bundleIdentifier: bundleID)
+        guard let desc = destino.aeDesc else { return OSStatus(procNotFound) }
+        return AEDeterminePermissionToAutomateTarget(desc, AEEventClass(kAECoreSuite), AEEventID(kAEGetData), preguntar)
+    }
+
+    private func leerConScript(sabiendo cancion: Cancion?) -> Result<Lectura, ErrorDeReproductor> {
         if let cancion {
             if scriptRapido == nil { scriptRapido = NSAppleScript(source: fuenteRapida) }
             switch Self.ejecutar(scriptRapido) {

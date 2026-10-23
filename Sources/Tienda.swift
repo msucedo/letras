@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import StoreKit
 
 // La compra única "Invítame un café ☕", con StoreKit 2: desbloquea elegir la animación de la
@@ -79,7 +79,10 @@ final class Tienda: ObservableObject {
         desbloqueado = comprado
     }
 
-    func comprar() async {
+    /// `ventana` es donde se pega la confirmación de Apple (ver VentanaCafe): tiene que seguir
+    /// abierta hasta que terminen. En macOS 13 a 15.1 no se puede elegir y StoreKit usa la que esté
+    /// al frente, que también es esa.
+    func comprar(en ventana: NSWindow?) async {
         if producto == nil {
             await cargarProducto()
         }
@@ -88,7 +91,13 @@ final class Tienda: ObservableObject {
         mensaje = nil
         defer { ocupada = false }
         do {
-            switch try await producto.purchase() {
+            let resultado: Product.PurchaseResult
+            if #available(macOS 15.2, *), let ventana {
+                resultado = try await producto.purchase(confirmIn: ventana)
+            } else {
+                resultado = try await producto.purchase()
+            }
+            switch resultado {
             case .success(.verified(let transaccion)):
                 await transaccion.finish()
                 await revisarCompra()

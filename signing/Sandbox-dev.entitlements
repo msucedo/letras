@@ -20,5 +20,9 @@
 			<string>com.spotify.library</string>
 		</array>
 	</dict>
+	<key>com.apple.application-identifier</key>
+	<string>M6JLQVH4Y7.com.msucedo.letras</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>M6JLQVH4Y7</string>
 </dict>
 </plist>

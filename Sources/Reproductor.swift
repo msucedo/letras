@@ -59,15 +59,17 @@ final class Reproductor {
     // Las dos apps entienden casi el mismo AppleScript; la diferencia está en la duración, que
     // Spotify da en milisegundos (aunque su diccionario dice segundos) y Música en segundos.
     // El timeout evita que la app de letras se congele si el reproductor no responde.
+    // Se pide `name of current track` y no `set t to current track`: con sandbox, Música solo deja
+    // pedir propiedades (grupo com.apple.Music.playback); la referencia al track da -10004.
     static let spotify = Reproductor(
         nombre: "Spotify", bundleID: "com.spotify.client",
         notificacion: "com.spotify.client.PlaybackStateChanged",
-        script: guion(app: "com.spotify.client", duracion: "(duration of t) / 1000"))
+        script: guion(app: "com.spotify.client", duracion: "(duration of current track) / 1000"))
 
     static let musica = Reproductor(
         nombre: "Música", bundleID: "com.apple.Music",
         notificacion: "com.apple.Music.playerInfo",
-        script: guion(app: "com.apple.Music", duracion: "duration of t"))
+        script: guion(app: "com.apple.Music", duracion: "duration of current track"))
 
     static let todos = [spotify, musica]
 
@@ -77,7 +79,6 @@ final class Reproductor {
             tell application id "\(app)"
                 set estado to player state
                 if estado is stopped then return {"detenido"}
-                set t to current track
                 set d to 0
                 try
                     set d to \(duracion)
@@ -87,7 +88,7 @@ final class Reproductor {
                 else
                     set e to "pausa"
                 end if
-                return {e, name of t, artist of t, album of t, d, player position}
+                return {e, name of current track, artist of current track, album of current track, d, player position}
             end tell
         end timeout
         """

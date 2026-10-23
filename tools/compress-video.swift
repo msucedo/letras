@@ -1,6 +1,7 @@
 // Comprime un video de pantalla a H.264 con un bitrate fijo (los presets de avconvert no lo dejan bajar).
 // swiftc tools/compress-video.swift -o build/compress-video
-// build/compress-video build/revision.mov dist/Letras-revision.mp4 1440 900 3000000
+// build/compress-video build/revision.mov dist/Letras-revision.mp4 1440 900 3000000 [inicio fin]
+// inicio y fin, en segundos, recortan el video (por ejemplo 0 107).
 import AVFoundation
 
 let a = CommandLine.arguments
@@ -10,6 +11,10 @@ try? FileManager.default.removeItem(at: dst)
 
 let asset = AVURLAsset(url: src)
 let reader = try AVAssetReader(asset: asset)
+let inicio = a.count > 6 ? CMTime(seconds: Double(a[6])!, preferredTimescale: 600) : .zero
+if a.count > 7 {
+    reader.timeRange = CMTimeRange(start: inicio, end: CMTime(seconds: Double(a[7])!, preferredTimescale: 600))
+}
 let writer = try AVAssetWriter(outputURL: dst, fileType: .mp4)
 writer.shouldOptimizeForNetworkUse = true
 
@@ -37,7 +42,7 @@ if let aTrack = asset.tracks(withMediaType: .audio).first {
 
 reader.startReading()
 writer.startWriting()
-writer.startSession(atSourceTime: .zero)
+writer.startSession(atSourceTime: inicio)
 let group = DispatchGroup()
 for (i, (out, inp)) in pairs.enumerated() {
     group.enter()

@@ -5,15 +5,23 @@
 #   ENTITLEMENTS=signing/…entitlements           agrega esos entitlements a la firma
 #   TIENDA=1                                      versión de la Mac App Store: con la compra del
 #                                                 café (si no, todo viene desbloqueado, como en el DMG)
-#   tools/build.sh --sandbox                      firma con Apple Development y sandbox, y con
-#                                                 TIENDA=1, para probar en esta Mac lo que verá la
-#                                                 App Store
+#   tools/build.sh --sandbox                      firma con Apple Development, sandbox, TIENDA=1 y
+#                                                 el perfil de desarrollo, para probar en esta Mac
+#                                                 lo que verá la App Store. Con el perfil, StoreKit
+#                                                 compra en sandbox (con un tester de App Store
+#                                                 Connect); sin él, la compra se iría a producción
 set -e
 cd "$(dirname "$0")/.."
 if [ "$1" = "--sandbox" ]; then
-    SIGN_IDENTITY="${SIGN_IDENTITY:-Apple Development}"
+    # Por hash: hay otro certificado "Apple Development" con el mismo nombre, vencido en 2022.
+    SIGN_IDENTITY="${SIGN_IDENTITY:-365597BBE365C61200A04035A81FB80E63274ED2}"
     ENTITLEMENTS="${ENTITLEMENTS:-signing/Sandbox-dev.entitlements}"
+    PROVISIONING_PROFILE="${PROVISIONING_PROFILE:-signing/Letras_Dev.provisionprofile}"
     TIENDA=1
+    if [ ! -f "$PROVISIONING_PROFILE" ]; then
+        echo "Falta $PROVISIONING_PROFILE: descárgalo de developer.apple.com > Profiles (tipo macOS App Development, para com.msucedo.letras y esta Mac)." >&2
+        exit 1
+    fi
 fi
 BANDERAS=""
 if [ "$TIENDA" = "1" ]; then

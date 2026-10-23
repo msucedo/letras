@@ -45,6 +45,11 @@ final class LRCLIB {
     }
 
     private func buscar(_ cancion: Cancion) async throws -> Letra? {
+        // Sin artista (un archivo sin etiquetas, p. ej. "Junior H - Ella") LRCLIB no acepta /get
+        // ni /search por campos: contesta 400. Ahí se busca el título como texto libre.
+        if cancion.artista.isEmpty {
+            return try await buscarParecida(titulo: cancion.titulo, cancion)
+        }
         if cancion.duracion > 0, let exacta = try await pedirExacta(cancion) {
             return exacta
         }
@@ -73,22 +78,23 @@ final class LRCLIB {
 
     private func buscarParecida(titulo: String, _ cancion: Cancion) async throws -> Letra? {
         var url = URLComponents(url: Self.servidor.appendingPathComponent("search"), resolvingAgainstBaseURL: false)!
-        url.queryItems = [
-            URLQueryItem(name: "track_name", value: titulo),
-            URLQueryItem(name: "artist_name", value: cancion.artista),
-        ]
+        url.queryItems = cancion.artista.isEmpty
+            ? [URLQueryItem(name: "q", value: titulo)]
+            : [URLQueryItem(name: "track_name", value: titulo),
+               URLQueryItem(name: "artist_name", value: cancion.artista)]
         guard let datos = try await pedir(url.url!) else { return nil }
         let registros = try JSONDecoder().decode([Registro].self, from: datos)
         return Self.elegir(registros, duracion: cancion.duracion).flatMap(Self.interpretar)
     }
 
-    /// Los datos de la respuesta, o nil si LRCLIB dice que no la tiene (404). Seguido contesta 503
+    /// Los datos de la respuesta, o nil si LRCLIB dice que no la tiene (404) o que la pregunta no
+    /// vale (400: repetirla daría lo mismo, no es falta de conexión). Seguido contesta 503
     /// ("ocupado") y al segundo ya responde, así que antes de rendirse lo intenta dos veces más.
     private func pedir(_ url: URL) async throws -> Data? {
         for espera in [1, 2, 0] {
             let (datos, respuesta) = try await sesion.data(from: url)
             let codigo = (respuesta as? HTTPURLResponse)?.statusCode ?? 0
-            if codigo == 404 { return nil }
+            if codigo == 404 || codigo == 400 { return nil }
             if codigo == 200 { return datos }
             guard codigo == 503 || codigo == 429, espera > 0 else { break }
             try await Task.sleep(nanoseconds: UInt64(espera) * 1_000_000_000)

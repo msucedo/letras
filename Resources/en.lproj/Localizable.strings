@@ -1,0 +1,64 @@
+/* Inglés. La clave es el texto en español tal como está en el código (Sources/); si falta una,
+   se ve en español. tools/check.sh avisa de los textos que no tienen traducción. */
+
+/* Panel */
+"Ocultar opciones" = "Hide options";
+"Mostrar opciones" = "Show options";
+" · en pausa" = " · paused";
+"Pon algo en Spotify o en Música" = "Play something in Spotify or Music";
+"Letras no tiene permiso de ver qué suena en %@." = "Letras isn't allowed to see what's playing in %@.";
+"Abrir Ajustes del Sistema" = "Open System Settings";
+"Reintentar" = "Try Again";
+"Línea actual en la barra de menú" = "Current line in the menu bar";
+"Animación en la barra" = "Menu bar animation";
+"Gracias por el café ☕" = "Thanks for the coffee ☕";
+"Ventana flotante" = "Floating window";
+"Desfase de la letra: %@" = "Lyrics offset: %@";
+"Si la letra va atrasada, súbelo; si va adelantada, bájalo." = "If the lyrics are behind, raise it; if they're ahead, lower it.";
+"Abrir al iniciar sesión" = "Open at login";
+"Salir" = "Quit";
+"☕ Invítame un café (%@) y elige la animación" = "☕ Buy me a coffee (%@) and choose the animation";
+"☕ Invítame un café y elige la animación" = "☕ Buy me a coffee and choose the animation";
+"Restaurar compra" = "Restore Purchase";
+"Letras %@ · by" = "Letras %@ · by";
+"· Letras de" = "· Lyrics from";
+"No se pudo cambiar: %@" = "Couldn't change it: %@";
+"Apruébalo en Ajustes del Sistema > General > Ítems de inicio." = "Approve it in System Settings > General > Login Items.";
+
+/* Letra */
+"Nada sonando" = "Nothing playing";
+"No encontré la letra de esta canción" = "Couldn't find lyrics for this song";
+"No pude buscar la letra. Lo vuelvo a intentar en un momento." = "Couldn't search for the lyrics. I'll try again in a moment.";
+"Instrumental" = "Instrumental";
+"Esta letra no está sincronizada" = "These lyrics aren't synced";
+
+/* Ventana flotante */
+"Ocultar ventana flotante" = "Hide Floating Window";
+"Letra no sincronizada" = "Lyrics not synced";
+"Buscando la letra…" = "Searching for lyrics…";
+"Sin letra" = "No lyrics";
+"Sin conexión" = "Offline";
+
+/* Animaciones de la barra */
+"Deslizar" = "Slide";
+"Rodillo" = "Roll";
+"Revelado" = "Reveal";
+"Fundido" = "Fade";
+"Ninguna" = "None";
+
+/* Reproductores */
+"Música" = "Music";
+
+/* Café */
+"Invítame un café ☕" = "Buy Me a Coffee ☕";
+"Ya puedes elegir la animación de la barra en las opciones del panel." = "You can now choose the menu bar animation in the panel's options.";
+"Si Letras te gusta, invítame un café. Con él puedes elegir cómo cambia la línea en la barra de menú; todo lo demás es gratis." = "If you like Letras, buy me a coffee. It lets you choose how the line changes in the menu bar; everything else is free.";
+"Invitar un café (%@)" = "Buy a coffee (%@)";
+"Invitar un café" = "Buy a coffee";
+"La compra no está disponible por ahora." = "The purchase isn't available right now.";
+"No pude cargar la tienda: %@" = "Couldn't load the store: %@";
+"No se pudo verificar la compra." = "The purchase couldn't be verified.";
+"La compra está pendiente de aprobación." = "The purchase is pending approval.";
+"No se pudo completar la compra: %@" = "The purchase couldn't be completed: %@";
+"No encontré el café en esta cuenta." = "No coffee purchase found on this account.";
+"No se pudo restaurar: %@" = "Couldn't restore: %@";

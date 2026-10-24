@@ -1,0 +1,4 @@
+/* Textos del Info.plist en español (los mismos del Info.plist). Esta carpeta también le dice a
+   macOS que la app está en español; sin ella, a quien tiene el Mac en español le saldría inglés. */
+"NSAppleEventsUsageDescription" = "Letras pregunta a Spotify y a Música qué canción suena y en qué segundo va, para mostrar la letra a tiempo.";
+"NSHumanReadableCopyright" = "© 2026 Mario Saucedo. Licencia MIT.";

@@ -17,11 +17,11 @@ enum AnimacionBarra: String, Codable, CaseIterable, Identifiable {
 
     var nombre: String {
         switch self {
-        case .deslizar: return "Deslizar"
-        case .rodillo: return "Rodillo"
-        case .revelado: return "Revelado"
-        case .fundido: return "Fundido"
-        case .ninguna: return "Ninguna"
+        case .deslizar: return String(localized: "Deslizar")
+        case .rodillo: return String(localized: "Rodillo")
+        case .revelado: return String(localized: "Revelado")
+        case .fundido: return String(localized: "Fundido")
+        case .ninguna: return String(localized: "Ninguna")
         }
     }
 

@@ -140,7 +140,7 @@ private final class VistaArrastrable<Contenido: View>: NSHostingView<Contenido> 
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Ocultar ventana flotante", action: #selector(ocultarDesdeMenu), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "Ocultar ventana flotante"), action: #selector(ocultarDesdeMenu), keyEquivalent: "")
             .target = self
         return menu
     }
@@ -217,12 +217,12 @@ private struct KaraokeView: View {
     private var mensaje: String {
         switch monitor.letra {
         case .lista(.sincronizada): return ""
-        case .lista(.simple): return "Letra no sincronizada"
-        case .lista(.instrumental): return "Instrumental"
-        case .buscando: return "Buscando la letra…"
-        case .sinLetra: return "Sin letra"
-        case .sinConexion: return "Sin conexión"
-        case .nadaSonando: return "Nada sonando"
+        case .lista(.simple): return String(localized: "Letra no sincronizada")
+        case .lista(.instrumental): return String(localized: "Instrumental")
+        case .buscando: return String(localized: "Buscando la letra…")
+        case .sinLetra: return String(localized: "Sin letra")
+        case .sinConexion: return String(localized: "Sin conexión")
+        case .nadaSonando: return String(localized: "Nada sonando")
         }
     }
 }

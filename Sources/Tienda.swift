@@ -61,9 +61,9 @@ final class Tienda: ObservableObject {
         defer { cargando = false }
         do {
             producto = try await Product.products(for: [Self.idCafe]).first
-            mensaje = producto == nil ? "La compra no está disponible por ahora." : nil
+            mensaje = producto == nil ? String(localized: "La compra no está disponible por ahora.") : nil
         } catch {
-            mensaje = "No pude cargar la tienda: \(error.localizedDescription)"
+            mensaje = String(localized: "No pude cargar la tienda: \(error.localizedDescription)")
         }
     }
 
@@ -102,16 +102,16 @@ final class Tienda: ObservableObject {
                 await transaccion.finish()
                 await revisarCompra()
             case .success(.unverified):
-                mensaje = "No se pudo verificar la compra."
+                mensaje = String(localized: "No se pudo verificar la compra.")
             case .pending:
-                mensaje = "La compra está pendiente de aprobación."
+                mensaje = String(localized: "La compra está pendiente de aprobación.")
             case .userCancelled:
                 break
             @unknown default:
                 break
             }
         } catch {
-            mensaje = "No se pudo completar la compra: \(error.localizedDescription)"
+            mensaje = String(localized: "No se pudo completar la compra: \(error.localizedDescription)")
         }
     }
 
@@ -124,9 +124,9 @@ final class Tienda: ObservableObject {
         do {
             try await AppStore.sync()
             await revisarCompra()
-            if !desbloqueado { mensaje = "No encontré el café en esta cuenta." }
+            if !desbloqueado { mensaje = String(localized: "No encontré el café en esta cuenta.") }
         } catch {
-            mensaje = "No se pudo restaurar: \(error.localizedDescription)"
+            mensaje = String(localized: "No se pudo restaurar: \(error.localizedDescription)")
         }
     }
 }

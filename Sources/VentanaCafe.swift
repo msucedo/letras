@@ -29,7 +29,7 @@ final class VentanaCafe: NSObject, NSWindowDelegate {
     private init(tienda: Tienda) {
         ventana = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init()
-        ventana.title = "Invítame un café ☕"
+        ventana.title = String(localized: "Invítame un café ☕")
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         // Con el controlador, la ventana toma el tamaño de la vista y lo ajusta cuando cambia.

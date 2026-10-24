@@ -40,6 +40,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp build/Letras "$APP/Contents/MacOS/Letras"
 cp Resources/AppIcon.icns Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
+# Los textos traducidos: es.lproj y en.lproj (macOS elige según el idioma del sistema).
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
 cp Info.plist "$APP/Contents/Info.plist"
 # La App Store rechaza el paquete si algún archivo trae atributos extendidos. El perfil de
 # aprovisionamiento viene del navegador con com.apple.quarantine y com.apple.macl, y macOS se los

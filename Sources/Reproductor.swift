@@ -73,6 +73,12 @@ final class Reproductor {
 
     static let todos = [spotify, musica]
 
+    /// El nombre en el idioma de la interfaz ("Música" → "Music"). `nombre` no se traduce porque
+    /// también sirve para identificar al reproductor, como en `Monitor.sinPermiso`.
+    static func nombreVisible(_ nombre: String) -> String {
+        Bundle.main.localizedString(forKey: nombre, value: nil, table: nil)
+    }
+
     private static func guion(app: String, duracion: String) -> String {
         """
         with timeout of 2 seconds

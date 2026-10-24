@@ -1,0 +1,3 @@
+/* Textos del Info.plist en inglés. */
+"NSAppleEventsUsageDescription" = "Letras asks Spotify and Music what song is playing and how far along it is, to show the lyrics in time.";
+"NSHumanReadableCopyright" = "© 2026 Mario Saucedo. MIT License.";

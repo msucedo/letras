@@ -91,7 +91,7 @@ struct PanelView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .help(abierto ? "Ocultar opciones" : "Mostrar opciones")
+            .help(abierto ? String(localized: "Ocultar opciones") : String(localized: "Mostrar opciones"))
 
             if abierto {
                 opciones
@@ -125,8 +125,8 @@ struct PanelView: View {
                 .lineLimit(1)
             Group {
                 if let cancion = monitor.cancion {
-                    let pausa = monitor.estado == .enPausa ? " · en pausa" : ""
-                    Text("\(cancion.artista) · \(monitor.nombreReproductor ?? "")\(pausa)")
+                    let pausa = monitor.estado == .enPausa ? String(localized: " · en pausa") : ""
+                    Text("\(cancion.artista) · \(Reproductor.nombreVisible(monitor.nombreReproductor ?? ""))\(pausa)")
                 } else {
                     Text("Pon algo en Spotify o en Música")
                 }
@@ -139,7 +139,7 @@ struct PanelView: View {
 
     private var avisoDePermiso: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Letras no tiene permiso de ver qué suena en \(monitor.sinPermiso.joined(separator: " y ")).")
+            Text("Letras no tiene permiso de ver qué suena en \(ListFormatter.localizedString(byJoining: monitor.sinPermiso.map(Reproductor.nombreVisible))).")
                 .font(.caption)
             HStack {
                 Button("Abrir Ajustes del Sistema") {
@@ -264,11 +264,11 @@ struct PanelView: View {
             }
             errorDeInicio = nil
         } catch {
-            errorDeInicio = "No se pudo cambiar: \(error.localizedDescription)"
+            errorDeInicio = String(localized: "No se pudo cambiar: \(error.localizedDescription)")
         }
         // macOS puede pedir que se apruebe en Ajustes > General > Ítems de inicio.
         if SMAppService.mainApp.status == .requiresApproval {
-            errorDeInicio = "Apruébalo en Ajustes del Sistema > General > Ítems de inicio."
+            errorDeInicio = String(localized: "Apruébalo en Ajustes del Sistema > General > Ítems de inicio.")
         }
         alIniciarSesion = SMAppService.mainApp.status == .enabled
     }
@@ -406,7 +406,7 @@ struct LetraView: View {
         return true
     }
 
-    private func mensaje(_ texto: String, icono: String) -> some View {
+    private func mensaje(_ texto: LocalizedStringKey, icono: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: icono)
                 .font(.largeTitle)

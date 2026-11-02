@@ -22,6 +22,10 @@
 </p>
 
 <p align="center">
+    <a href="https://macnative.io/apps/letras?utm_source=macnative-badge&utm_medium=referral" target="_blank" rel="noopener"><img src="https://macnative.io/badge?kind=listed&theme=default&slug=letras&small=1&rounded=1" alt="Listed on MacNative" width="168" height="44" /></a>
+</p>
+
+<p align="center">
   <a href="https://msucedo.github.io/letras/">msucedo.github.io/letras</a>
 </p>
 

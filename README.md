@@ -21,10 +21,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/msucedo/letras?label=licencia" alt="Licencia MIT"></a>
 </p>
 
-
-    <a href="https://macnative.io/apps/letras?utm_source=macnative-badge&utm_medium=referral" target="_blank" rel="noopener"><img src="https://macnative.io/badge?kind=listed&theme=default&slug=letras" alt="Listed on MacNative" width="212" height="58" /></a>
-
-
 <p align="center">
   <a href="https://msucedo.github.io/letras/">msucedo.github.io/letras</a>
 </p>
